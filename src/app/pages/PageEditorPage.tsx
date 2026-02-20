@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { createClient } from '../../lib/supabase';
+import { uploadAvatar } from '../../lib/api';
 import { useAuth } from '../App';
 import type { Page, PageBlock } from '../../lib/supabase';
 import { toast } from 'sonner';
@@ -131,6 +132,7 @@ export default function PageEditorPage() {
   const [editingBlock, setEditingBlock] = useState<PageBlock | null>(null);
   const [form, setForm] = useState<BlockFormState>(DEFAULT_BY_TYPE.link);
   const [savingBlock, setSavingBlock] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     loadPage();
@@ -200,6 +202,31 @@ export default function PageEditorPage() {
     } catch (error) {
       console.error('Toggle publish error:', error);
       toast.error('Failed to update page');
+    }
+  };
+
+  const handleAvatarUpload = async (file?: File | null) => {
+    if (!file || !pageId) return;
+    setUploadingAvatar(true);
+
+    try {
+      const supabase = createClient();
+      const uploaded = await uploadAvatar(file, pageId);
+
+      const { error } = await supabase
+        .from('pages')
+        .update({ avatar_path: uploaded.path })
+        .eq('id', pageId);
+
+      if (error) throw error;
+
+      setPage((p) => (p ? { ...p, avatar_path: uploaded.path } : p));
+      toast.success('Profile image updated');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to upload image');
+    } finally {
+      setUploadingAvatar(false);
     }
   };
 
@@ -401,6 +428,16 @@ export default function PageEditorPage() {
               <div>
                 <h1 className="font-semibold">{page.title || 'Untitled Page'}</h1>
                 <p className="text-sm text-muted-foreground">@{page.handle}</p>
+                <label className="text-xs text-primary cursor-pointer inline-block mt-1">
+                  {uploadingAvatar ? 'Uploading image...' : 'Upload profile image'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingAvatar}
+                    onChange={(e) => handleAvatarUpload(e.target.files?.[0])}
+                  />
+                </label>
               </div>
             </div>
 
@@ -588,6 +625,15 @@ export default function PageEditorPage() {
                 <div className="space-y-2">
                   <Label>Price (NGN)</Label>
                   <Input value={form.price || ''} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Image URL</Label>
+                  <Input
+                    value={form.image || ''}
+                    onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))}
+                    placeholder="https://..."
+                  />
+                  <p className="text-xs text-muted-foreground">Tip: paste a direct image link (jpg/png/webp).</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
