@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, MessageCircle, Youtube, Mail, Image as ImageIcon } from 'lucide-react';
+import { ExternalLink, MessageCircle, Youtube, Mail, Image as ImageIcon, Globe } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
@@ -9,6 +9,15 @@ import { createClient } from '../../../lib/supabase';
 import { generateWhatsAppLink, formatCurrency } from '../../../lib/utils';
 import { cloudinaryOptimized } from '../../../lib/cloudinary';
 import { toast } from 'sonner';
+import {
+  siInstagram,
+  siTiktok,
+  siFacebook,
+  siX,
+  siTelegram,
+  siYoutube,
+  siWhatsapp,
+} from 'simple-icons';
 
 interface BlockRendererProps {
   block: PageBlock;
@@ -244,6 +253,30 @@ function ProductBlock({ block, onClick }: { block: PageBlock; onClick: () => voi
   );
 }
 
+function BrandIcon({ platform }: { platform: string }) {
+  const key = platform.toLowerCase();
+  const map: Record<string, { path: string; hex: string } | undefined> = {
+    instagram: siInstagram,
+    tiktok: siTiktok,
+    facebook: siFacebook,
+    x: siX,
+    twitter: siX,
+    telegram: siTelegram,
+    youtube: siYoutube,
+    linkedin: undefined,
+    whatsapp: siWhatsapp,
+  };
+
+  const icon = map[key];
+  if (!icon) return <Globe className="h-4 w-4" />;
+
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true" role="img">
+      <path d={icon.path} fill={`#${icon.hex}`} />
+    </svg>
+  );
+}
+
 function SocialRowBlock({ block, onClick }: { block: PageBlock; onClick: () => void }) {
   const { socials } = block.settings;
 
@@ -251,24 +284,12 @@ function SocialRowBlock({ block, onClick }: { block: PageBlock; onClick: () => v
     return null;
   }
 
-  const iconByPlatform: Record<string, string> = {
-    instagram: '📸',
-    tiktok: '🎵',
-    facebook: '📘',
-    x: '𝕏',
-    telegram: '✈️',
-    youtube: '▶️',
-    linkedin: '💼',
-    whatsapp: '💬',
-  };
-
   return (
     <div className="flex justify-center gap-3 flex-wrap">
       {socials
         .filter((s: any) => s?.url)
         .map((social: any, index: number) => {
           const platform = String(social.platform || social.name || '').toLowerCase();
-          const icon = social.icon || iconByPlatform[platform] || '🔗';
           return (
             <a
               key={index}
@@ -278,7 +299,7 @@ function SocialRowBlock({ block, onClick }: { block: PageBlock; onClick: () => v
               onClick={onClick}
               className="flex items-center gap-2 px-4 py-2 rounded-full border border-border hover:bg-accent transition-colors"
             >
-              <span>{icon}</span>
+              <BrandIcon platform={platform} />
               <span className="text-sm font-medium">{social.name || social.platform || 'Link'}</span>
             </a>
           );
