@@ -95,6 +95,7 @@ function WhatsAppCTABlock({ block, onClick }: { block: PageBlock; onClick: () =>
 
 function ProductBlock({ block, onClick }: { block: PageBlock; onClick: () => void }) {
   const { name, price, image, description, whatsappNumber, whatsappMessage } = block.settings;
+  const [openImage, setOpenImage] = React.useState(false);
   
   const handleOrder = () => {
     onClick();
@@ -106,44 +107,70 @@ function ProductBlock({ block, onClick }: { block: PageBlock; onClick: () => voi
   };
   
   return (
-    <Card className="overflow-hidden">
-      {image && (
-        <div className="aspect-video w-full bg-muted relative">
-          <img 
-            src={cloudinaryOptimized(image, 900)} 
-            alt={name} 
-            className="w-full h-full object-cover"
-            loading="lazy"
-            decoding="async"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
+    <>
+      <Card className="overflow-hidden">
+        {image && (
+          <button
+            type="button"
+            className="w-full bg-muted relative p-2"
+            onClick={() => setOpenImage(true)}
+            aria-label={`Expand image for ${name || 'product'}`}
+          >
+            <div className="h-44 sm:h-52 w-full rounded-md overflow-hidden bg-muted/50 border">
+              <img 
+                src={cloudinaryOptimized(image, 900)} 
+                alt={name} 
+                className="w-full h-full object-contain"
+                loading="lazy"
+                decoding="async"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
+            <span className="absolute bottom-4 right-4 text-[11px] px-2 py-1 rounded bg-black/60 text-white">
+              Tap to expand
+            </span>
+          </button>
+        )}
+        <div className="p-4">
+          <div className="flex items-start justify-between mb-2 gap-3">
+            <h3 className="font-semibold text-lg">{name || 'Product Name'}</h3>
+            {price && (
+              <span className="text-lg font-bold text-primary shrink-0">
+                {formatCurrency(price)}
+              </span>
+            )}
+          </div>
+          {description && (
+            <p className="text-sm text-muted-foreground mb-4">{description}</p>
+          )}
+          {whatsappNumber && (
+            <Button 
+              onClick={handleOrder}
+              className="w-full bg-green-600 hover:bg-green-700"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Order via WhatsApp
+            </Button>
+          )}
+        </div>
+      </Card>
+
+      {openImage && image && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 p-4 flex items-center justify-center"
+          onClick={() => setOpenImage(false)}
+        >
+          <img
+            src={cloudinaryOptimized(image, 1600)}
+            alt={name}
+            className="max-h-[90vh] max-w-[95vw] object-contain rounded-md"
+            onClick={(e) => e.stopPropagation()}
           />
         </div>
       )}
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-2">
-          <h3 className="font-semibold text-lg">{name || 'Product Name'}</h3>
-          {price && (
-            <span className="text-lg font-bold text-primary">
-              {formatCurrency(price)}
-            </span>
-          )}
-        </div>
-        {description && (
-          <p className="text-sm text-muted-foreground mb-4">{description}</p>
-        )}
-        {whatsappNumber && (
-          <Button 
-            onClick={handleOrder}
-            className="w-full bg-green-600 hover:bg-green-700"
-          >
-            <MessageCircle className="h-4 w-4 mr-2" />
-            Order via WhatsApp
-          </Button>
-        )}
-      </div>
-    </Card>
+    </>
   );
 }
 
