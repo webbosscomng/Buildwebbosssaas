@@ -9,7 +9,7 @@ import { createClient } from '../../lib/supabase';
 import { useAuth } from '../App';
 import type { Page } from '../../lib/supabase';
 import type { ThemeTokens } from '../../lib/theme';
-import { THEME_TOKEN_PRESETS, tokensToCssVars } from '../../lib/theme';
+import { THEME_TOKEN_PRESETS, tokensToCssVars, getContrastRatio } from '../../lib/theme';
 import { toast } from 'sonner';
 
 const THEME_PRESETS = [
@@ -19,6 +19,36 @@ const THEME_PRESETS = [
 ] as const;
 
 type ThemePresetId = (typeof THEME_PRESETS)[number]['id'];
+
+function TokenColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex items-center gap-2">
+        <Input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-10 w-12 p-1"
+        />
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="#000000"
+          className="h-10 font-mono"
+        />
+      </div>
+    </div>
+  );
+}
 
 function ThemeMiniPreview({ theme }: { theme: ThemePresetId }) {
   return (
@@ -72,6 +102,8 @@ export default function ThemeEditorPage() {
   }, [selectedTheme, originalTheme, tokens, originalTokens]);
 
   const previewStyle = useMemo(() => tokensToCssVars(tokens), [tokens]);
+  const contrastPrimary = useMemo(() => getContrastRatio(tokens.primary, tokens.primaryForeground), [tokens.primary, tokens.primaryForeground]);
+  const contrastSurface = useMemo(() => getContrastRatio(tokens.background, tokens.foreground), [tokens.background, tokens.foreground]);
 
   useEffect(() => {
     loadPage();
@@ -222,13 +254,13 @@ export default function ThemeEditorPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 pb-24 lg:pb-8">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-end justify-between gap-4 mb-6">
             <div>
               <h2 className="text-2xl font-semibold">Choose a Theme</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Pick a preset. You’ll be able to fine-tune colors, fonts, and buttons next.
+                Pick a preset, then fine-tune colors and corner radius with live preview.
               </p>
             </div>
 
@@ -305,64 +337,20 @@ export default function ThemeEditorPage() {
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Primary</Label>
-                      <Input
-                        type="color"
-                        value={tokens.primary}
-                        onChange={(e) => setTokens((t) => ({ ...t, primary: e.target.value }))}
-                        className="h-10 p-1"
-                      />
-                    </div>
+                    <TokenColorField label="Primary" value={tokens.primary} onChange={(v) => setTokens((t) => ({ ...t, primary: v }))} />
+                    <TokenColorField label="Primary text" value={tokens.primaryForeground} onChange={(v) => setTokens((t) => ({ ...t, primaryForeground: v }))} />
+                    <TokenColorField label="Background" value={tokens.background} onChange={(v) => setTokens((t) => ({ ...t, background: v }))} />
+                    <TokenColorField label="Text" value={tokens.foreground} onChange={(v) => setTokens((t) => ({ ...t, foreground: v }))} />
+                    <TokenColorField label="Card" value={tokens.card} onChange={(v) => setTokens((t) => ({ ...t, card: v }))} />
+                    <TokenColorField label="Card text" value={tokens.cardForeground} onChange={(v) => setTokens((t) => ({ ...t, cardForeground: v }))} />
 
-                    <div className="space-y-2">
-                      <Label>Primary text</Label>
-                      <Input
-                        type="color"
-                        value={tokens.primaryForeground}
-                        onChange={(e) => setTokens((t) => ({ ...t, primaryForeground: e.target.value }))}
-                        className="h-10 p-1"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Background</Label>
-                      <Input
-                        type="color"
-                        value={tokens.background}
-                        onChange={(e) => setTokens((t) => ({ ...t, background: e.target.value }))}
-                        className="h-10 p-1"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Text</Label>
-                      <Input
-                        type="color"
-                        value={tokens.foreground}
-                        onChange={(e) => setTokens((t) => ({ ...t, foreground: e.target.value }))}
-                        className="h-10 p-1"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Card</Label>
-                      <Input
-                        type="color"
-                        value={tokens.card}
-                        onChange={(e) => setTokens((t) => ({ ...t, card: e.target.value }))}
-                        className="h-10 p-1"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Card text</Label>
-                      <Input
-                        type="color"
-                        value={tokens.cardForeground}
-                        onChange={(e) => setTokens((t) => ({ ...t, cardForeground: e.target.value }))}
-                        className="h-10 p-1"
-                      />
+                    <div className="sm:col-span-2 flex flex-wrap gap-2">
+                      <span className={"text-xs px-2 py-1 rounded-full border " + (contrastPrimary >= 4.5 ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30' : 'bg-amber-500/10 text-amber-700 border-amber-500/30')}>
+                        Primary contrast: {contrastPrimary.toFixed(2)} {contrastPrimary >= 4.5 ? '✓' : '⚠'}
+                      </span>
+                      <span className={"text-xs px-2 py-1 rounded-full border " + (contrastSurface >= 4.5 ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30' : 'bg-amber-500/10 text-amber-700 border-amber-500/30')}>
+                        Surface contrast: {contrastSurface.toFixed(2)} {contrastSurface >= 4.5 ? '✓' : '⚠'}
+                      </span>
                     </div>
 
                     <div className="space-y-2 sm:col-span-2">
@@ -420,6 +408,26 @@ export default function ThemeEditorPage() {
           </div>
         </div>
       </main>
+
+      {/* Mobile action rail */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-50 border-t bg-background/95 backdrop-blur p-3">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => {
+              setSelectedTheme(originalTheme);
+              setTokens(originalTokens);
+            }}
+            disabled={!hasChanges || saving}
+          >
+            Reset
+          </Button>
+          <Button className="flex-1" onClick={handleSave} disabled={!hasChanges || saving}>
+            {saving ? 'Saving...' : 'Save'}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
