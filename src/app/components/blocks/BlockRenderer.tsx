@@ -98,7 +98,8 @@ function ProductBlock({ block, onClick }: { block: PageBlock; onClick: () => voi
   const allImages: string[] = (Array.isArray(images) && images.length ? images : image ? [image] : []).filter(Boolean);
   const [openImage, setOpenImage] = React.useState(false);
   const [activeIndex, setActiveIndex] = React.useState(0);
-  
+  const sliderRef = React.useRef<HTMLDivElement | null>(null);
+
   const handleOrder = () => {
     onClick();
     if (whatsappNumber) {
@@ -107,60 +108,60 @@ function ProductBlock({ block, onClick }: { block: PageBlock; onClick: () => voi
       window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
     }
   };
-  
+
+  const onSliderScroll = () => {
+    if (!sliderRef.current) return;
+    const width = sliderRef.current.clientWidth;
+    const idx = Math.round(sliderRef.current.scrollLeft / Math.max(width, 1));
+    setActiveIndex(Math.max(0, Math.min(allImages.length - 1, idx)));
+  };
+
   return (
     <>
       <Card className="overflow-hidden">
         {allImages.length > 0 && (
-          <div className="w-full bg-muted relative p-2">
-            <button
-              type="button"
-              className="w-full"
-              onClick={() => {
-                setActiveIndex(0);
-                setOpenImage(true);
-              }}
-              aria-label={`Expand image for ${name || 'product'}`}
+          <div className="w-full relative bg-black">
+            <div
+              ref={sliderRef}
+              className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth"
+              onScroll={onSliderScroll}
             >
-              <div className="h-44 sm:h-52 w-full rounded-md overflow-hidden bg-muted/50 border">
-                <img 
-                  src={cloudinaryOptimized(allImages[0], 900)} 
-                  alt={name} 
-                  className="w-full h-full object-contain"
-                  loading="lazy"
-                  decoding="async"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
+              {allImages.map((img, idx) => (
+                <button
+                  key={`${img}-${idx}`}
+                  type="button"
+                  className="min-w-full h-56 sm:h-72 snap-start relative"
+                  onClick={() => {
+                    setActiveIndex(idx);
+                    setOpenImage(true);
                   }}
-                />
-              </div>
-              <span className="absolute bottom-4 right-4 text-[11px] px-2 py-1 rounded bg-black/60 text-white">
-                Tap to expand
-              </span>
-            </button>
+                  aria-label={`Open image ${idx + 1}`}
+                >
+                  <img
+                    src={cloudinaryOptimized(img, 1200)}
+                    alt={`${name || 'product'} ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </button>
+              ))}
+            </div>
 
             {allImages.length > 1 && (
-              <div className="mt-2 flex gap-2 overflow-x-auto">
-                {allImages.map((img, idx) => (
-                  <button
-                    key={`${img}-${idx}`}
-                    type="button"
-                    className="shrink-0 rounded border"
-                    onClick={() => {
-                      setActiveIndex(idx);
-                      setOpenImage(true);
-                    }}
-                  >
-                    <img
-                      src={cloudinaryOptimized(img, 160)}
-                      alt={`${name} ${idx + 1}`}
-                      className="h-14 w-14 object-cover rounded"
-                      loading="lazy"
-                      decoding="async"
+              <>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/35 px-2 py-1 rounded-full">
+                  {allImages.map((_, idx) => (
+                    <span
+                      key={idx}
+                      className={`h-1.5 w-1.5 rounded-full ${idx === activeIndex ? 'bg-white' : 'bg-white/40'}`}
                     />
-                  </button>
-                ))}
-              </div>
+                  ))}
+                </div>
+                <div className="absolute top-2 right-2 text-[11px] px-2 py-1 rounded bg-black/50 text-white">
+                  Swipe
+                </div>
+              </>
             )}
           </div>
         )}
