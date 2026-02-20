@@ -382,18 +382,19 @@ function ContactFormBlock({ block }: { block: PageBlock }) {
         <div>
           <Input
             type="email"
-            placeholder="Email"
+            placeholder="Email (optional)"
             value={formData.email || ''}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            required
           />
         </div>
         <div>
           <Input
             type="tel"
-            placeholder="Phone (optional)"
+            inputMode="tel"
+            placeholder="Phone"
             value={formData.phone || ''}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            required
           />
         </div>
         <div>
@@ -405,7 +406,11 @@ function ContactFormBlock({ block }: { block: PageBlock }) {
             rows={4}
           />
         </div>
-        <Button type="submit" className="w-full" disabled={submitting}>
+        <Button
+          type="submit"
+          className="w-full bg-foreground text-background hover:bg-foreground/90"
+          disabled={submitting}
+        >
           {submitting ? 'Sending...' : 'Send Message'}
         </Button>
       </form>
