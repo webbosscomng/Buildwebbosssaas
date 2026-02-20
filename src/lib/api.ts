@@ -197,8 +197,15 @@ export async function getAvatarUrl(path: string): Promise<string> {
 // Upload product image to Supabase Storage (public bucket)
 export async function uploadProductImage(file: File, pageId: string): Promise<{ path: string; url: string }> {
   const supabase = createClient();
+
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  const userId = authData.user?.id;
+  if (!userId) throw new Error('Not authenticated');
+
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-  const filePath = `${pageId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  // Folder format for strict storage policy: {user_id}/{page_id}/{filename}
+  const filePath = `${userId}/${pageId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
   const { error } = await supabase.storage
     .from('product-images')
