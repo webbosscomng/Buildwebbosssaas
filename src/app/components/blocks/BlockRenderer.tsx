@@ -190,16 +190,54 @@ function ProductBlock({ block, onClick }: { block: PageBlock; onClick: () => voi
       </Card>
 
       {openImage && allImages.length > 0 && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/80 p-4 flex items-center justify-center"
-          onClick={() => setOpenImage(false)}
-        >
-          <img
-            src={cloudinaryOptimized(allImages[activeIndex], 1600)}
-            alt={name}
-            className="max-h-[90vh] max-w-[95vw] object-contain rounded-md"
-            onClick={(e) => e.stopPropagation()}
-          />
+        <div className="fixed inset-0 z-[100] bg-black/90">
+          <button
+            type="button"
+            className="absolute top-4 right-4 z-10 h-9 w-9 rounded-full bg-white/20 text-white"
+            onClick={() => setOpenImage(false)}
+            aria-label="Close"
+          >
+            ×
+          </button>
+
+          <div
+            className="h-full w-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth"
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              const idx = Math.round(el.scrollLeft / Math.max(el.clientWidth, 1));
+              setActiveIndex(Math.max(0, Math.min(allImages.length - 1, idx)));
+            }}
+          >
+            {allImages.map((img, idx) => (
+              <div
+                key={`${img}-${idx}`}
+                className="min-w-full h-full snap-start flex items-center justify-center p-4"
+              >
+                <img
+                  src={cloudinaryOptimized(img, 1800)}
+                  alt={`${name || 'product'} ${idx + 1}`}
+                  className="max-h-[92vh] max-w-[96vw] object-contain rounded-md"
+                />
+              </div>
+            ))}
+          </div>
+
+          {allImages.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/40 px-3 py-1.5 rounded-full">
+              {allImages.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className={`h-2 w-2 rounded-full ${idx === activeIndex ? 'bg-white' : 'bg-white/40'}`}
+                  onClick={() => {
+                    const container = document.querySelector('.fixed.inset-0.z-\[100\] .overflow-x-auto') as HTMLDivElement | null;
+                    if (container) container.scrollTo({ left: container.clientWidth * idx, behavior: 'smooth' });
+                    setActiveIndex(idx);
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>
