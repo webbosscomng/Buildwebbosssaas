@@ -271,9 +271,16 @@ function SocialRowBlock({ block, onClick }: { block: PageBlock; onClick: () => v
 }
 
 function EmbedBlock({ block }: { block: PageBlock }) {
-  const { embedUrl, type } = block.settings;
-  
-  if (type === 'youtube' && embedUrl) {
+  const { embedUrl } = block.settings;
+  const declaredType = block.settings?.type as string | undefined;
+
+  if (!embedUrl) return null;
+
+  const inferredType = declaredType
+    || (String(embedUrl).includes('youtube.com') || String(embedUrl).includes('youtu.be') ? 'youtube' : '')
+    || (String(embedUrl).includes('tiktok.com') ? 'tiktok' : '');
+
+  if (inferredType === 'youtube') {
     return (
       <div className="aspect-video w-full rounded-lg overflow-hidden">
         <iframe
@@ -285,8 +292,8 @@ function EmbedBlock({ block }: { block: PageBlock }) {
       </div>
     );
   }
-  
-  if (type === 'tiktok' && embedUrl) {
+
+  if (inferredType === 'tiktok') {
     return (
       <div className="aspect-[9/16] max-w-sm mx-auto rounded-lg overflow-hidden">
         <iframe
@@ -298,7 +305,7 @@ function EmbedBlock({ block }: { block: PageBlock }) {
       </div>
     );
   }
-  
+
   return null;
 }
 
@@ -432,11 +439,11 @@ function AnnouncementBlock({ block }: { block: PageBlock }) {
 }
 
 function TextBlock({ block }: { block: PageBlock }) {
-  const { content } = block.settings;
-  
+  const { content, text } = block.settings;
+
   return (
     <div className="prose prose-sm max-w-none">
-      <p className="text-center text-muted-foreground">{content}</p>
+      <p className="text-center text-muted-foreground">{text || content}</p>
     </div>
   );
 }

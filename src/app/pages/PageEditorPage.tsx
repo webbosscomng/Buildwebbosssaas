@@ -21,6 +21,7 @@ import { uploadAvatar, uploadProductImage } from '../../lib/api';
 import { useAuth } from '../App';
 import type { Page, PageBlock } from '../../lib/supabase';
 import { toast } from 'sonner';
+import { BlockRenderer } from '../components/blocks/BlockRenderer';
 
 type BlockType = PageBlock['type'];
 
@@ -41,6 +42,7 @@ type BlockFormState = {
   embedUrl?: string;
   text?: string;
   submitText?: string;
+  socialsText?: string;
 };
 
 const BLOCK_TYPE_OPTIONS: Array<{ type: BlockType; label: string }> = [
@@ -59,7 +61,7 @@ const DEFAULT_BY_TYPE: Record<BlockType, BlockFormState> = {
   link: { type: 'link', title: 'My Link', url: 'https://', icon: '🔗' },
   whatsapp_cta: { type: 'whatsapp_cta', buttonText: 'Chat on WhatsApp', phone: '', message: 'Hi!' },
   product: { type: 'product', name: 'Product Name', price: '5000', description: '', image: '', images: [], whatsappNumber: '' },
-  social_row: { type: 'social_row', text: 'Add social links in future update' },
+  social_row: { type: 'social_row', socialsText: 'Instagram|https://instagram.com/|📸\nTikTok|https://tiktok.com/|🎵' },
   embed: { type: 'embed', embedUrl: '' },
   contact_form: { type: 'contact_form', title: 'Contact Me', submitText: 'Send' },
   announcement: { type: 'announcement', text: 'Welcome to my page 🎉' },
@@ -91,12 +93,18 @@ function toForm(block: PageBlock): BlockFormState {
       ? [settings.image]
       : [];
 
+  const socials = Array.isArray(settings.socials) ? settings.socials : [];
+  const socialsText = socials
+    .map((s: any) => [s.name || '', s.url || '', s.icon || ''].join('|'))
+    .join('\n');
+
   return {
     type: block.type,
     ...DEFAULT_BY_TYPE[block.type],
     ...settings,
     image: settings.image || images[0] || '',
     images,
+    socialsText,
   };
 }
 
@@ -118,10 +126,27 @@ function toSettings(form: BlockFormState): Record<string, any> {
         whatsappNumber: form.whatsappNumber || '',
       };
     }
-    case 'social_row':
-      return { text: form.text || '' };
-    case 'embed':
-      return { embedUrl: form.embedUrl || '' };
+    case 'social_row': {
+      const socials = (form.socialsText || '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+          const [name, url, icon] = line.split('|').map((v) => (v || '').trim());
+          return { name, url, icon };
+        })
+        .filter((s) => s.url);
+      return { socials };
+    }
+    case 'embed': {
+      const embedUrl = form.embedUrl || '';
+      const type = embedUrl.includes('youtube.com') || embedUrl.includes('youtu.be')
+        ? 'youtube'
+        : embedUrl.includes('tiktok.com')
+          ? 'tiktok'
+          : '';
+      return { embedUrl, type };
+    }
     case 'contact_form':
       return { title: form.title || 'Contact', submitText: form.submitText || 'Send' };
     case 'announcement':
@@ -588,9 +613,7 @@ export default function PageEditorPage() {
 
               <div className="space-y-3">
                 {blocks.filter((b) => b.is_enabled).map((block) => (
-                  <div key={block.id} className="border rounded-lg p-3 text-sm">
-                    {prettyType(block.type)} • {summarize(block)}
-                  </div>
+                  <BlockRenderer key={block.id} block={block} />
                 ))}
                 {blocks.filter((b) => b.is_enabled).length === 0 && (
                   <div className="text-sm text-muted-foreground text-center py-4">No enabled blocks</div>
@@ -790,8 +813,21 @@ export default function PageEditorPage() {
               </>
             )}
 
-            {(form.type === 'divider' || form.type === 'social_row') && (
-              <p className="text-sm text-muted-foreground">No extra fields for this block type yet.</p>
+            {form.type === 'social_row' && (
+              <div className="space-y-2">
+                <Label>Social links</Label>
+                <Textarea
+                  value={form.socialsText || ''}
+                  onChange={(e) => setForm((f) => ({ ...f, socialsText: e.target.value }))}
+                  rows={4}
+                  placeholder="Name|https://link|Icon\nInstagram|https://instagram.com/yourname|📸"
+                />
+                <p className="text-xs text-muted-foreground">One per line: Name|URL|Icon (icon optional)</p>
+              </div>
+            )}
+
+            {form.type === 'divider' && (
+              <p className="text-sm text-muted-foreground">No extra fields for divider.</p>
             )}
           </div>
 
