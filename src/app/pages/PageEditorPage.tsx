@@ -1,16 +1,124 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router';
-import { ArrowLeft, Plus, Eye, EyeOff, GripVertical, Trash2, ExternalLink } from 'lucide-react';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
+import { ArrowLeft, Plus, Eye, EyeOff, GripVertical, Trash2, ExternalLink, Pencil } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Switch } from '../components/ui/switch';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
 import { createClient } from '../../lib/supabase';
 import { useAuth } from '../App';
 import type { Page, PageBlock } from '../../lib/supabase';
 import { toast } from 'sonner';
+
+type BlockType = PageBlock['type'];
+
+type BlockFormState = {
+  type: BlockType;
+  title?: string;
+  url?: string;
+  icon?: string;
+  buttonText?: string;
+  phone?: string;
+  message?: string;
+  name?: string;
+  price?: string;
+  description?: string;
+  image?: string;
+  whatsappNumber?: string;
+  embedUrl?: string;
+  text?: string;
+  submitText?: string;
+};
+
+const BLOCK_TYPE_OPTIONS: Array<{ type: BlockType; label: string }> = [
+  { type: 'link', label: 'Link' },
+  { type: 'whatsapp_cta', label: 'WhatsApp CTA' },
+  { type: 'product', label: 'Product' },
+  { type: 'social_row', label: 'Social Row' },
+  { type: 'embed', label: 'Embed' },
+  { type: 'contact_form', label: 'Contact Form' },
+  { type: 'announcement', label: 'Announcement' },
+  { type: 'text', label: 'Text' },
+  { type: 'divider', label: 'Divider' },
+];
+
+const DEFAULT_BY_TYPE: Record<BlockType, BlockFormState> = {
+  link: { type: 'link', title: 'My Link', url: 'https://', icon: '🔗' },
+  whatsapp_cta: { type: 'whatsapp_cta', buttonText: 'Chat on WhatsApp', phone: '', message: 'Hi!' },
+  product: { type: 'product', name: 'Product Name', price: '5000', description: '', image: '', whatsappNumber: '' },
+  social_row: { type: 'social_row', text: 'Add social links in future update' },
+  embed: { type: 'embed', embedUrl: '' },
+  contact_form: { type: 'contact_form', title: 'Contact Me', submitText: 'Send' },
+  announcement: { type: 'announcement', text: 'Welcome to my page 🎉' },
+  text: { type: 'text', text: 'Write something here...' },
+  divider: { type: 'divider' },
+};
+
+function prettyType(t: BlockType) {
+  return BLOCK_TYPE_OPTIONS.find((x) => x.type === t)?.label || t;
+}
+
+function summarize(block: PageBlock) {
+  const s = block.settings || {};
+  return (
+    s.title ||
+    s.name ||
+    s.buttonText ||
+    s.text ||
+    s.embedUrl ||
+    (block.type === 'divider' ? 'Divider' : 'Untitled')
+  );
+}
+
+function toForm(block: PageBlock): BlockFormState {
+  return {
+    type: block.type,
+    ...DEFAULT_BY_TYPE[block.type],
+    ...block.settings,
+  };
+}
+
+function toSettings(form: BlockFormState): Record<string, any> {
+  switch (form.type) {
+    case 'link':
+      return { title: form.title || 'My Link', url: form.url || '', icon: form.icon || '🔗' };
+    case 'whatsapp_cta':
+      return { buttonText: form.buttonText || 'Chat on WhatsApp', phone: form.phone || '', message: form.message || '' };
+    case 'product':
+      return {
+        name: form.name || 'Product Name',
+        price: form.price || '0',
+        description: form.description || '',
+        image: form.image || '',
+        whatsappNumber: form.whatsappNumber || '',
+      };
+    case 'social_row':
+      return { text: form.text || '' };
+    case 'embed':
+      return { embedUrl: form.embedUrl || '' };
+    case 'contact_form':
+      return { title: form.title || 'Contact', submitText: form.submitText || 'Send' };
+    case 'announcement':
+      return { text: form.text || '' };
+    case 'text':
+      return { text: form.text || '' };
+    case 'divider':
+      return {};
+    default:
+      return {};
+  }
+}
 
 export default function PageEditorPage() {
   const { pageId } = useParams<{ pageId: string }>();
@@ -19,9 +127,19 @@ export default function PageEditorPage() {
   const [blocks, setBlocks] = useState<PageBlock[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingBlock, setEditingBlock] = useState<PageBlock | null>(null);
+  const [form, setForm] = useState<BlockFormState>(DEFAULT_BY_TYPE.link);
+  const [savingBlock, setSavingBlock] = useState(false);
+
   useEffect(() => {
     loadPage();
   }, [pageId]);
+
+  const nextSortOrder = useMemo(
+    () => (blocks.length ? Math.max(...blocks.map((b) => b.sort_order || 0)) + 1 : 0),
+    [blocks],
+  );
 
   const loadPage = async () => {
     if (!pageId || !user) return;
@@ -80,6 +198,130 @@ export default function PageEditorPage() {
     }
   };
 
+  const openAddDialog = () => {
+    setEditingBlock(null);
+    setForm(DEFAULT_BY_TYPE.link);
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = (block: PageBlock) => {
+    setEditingBlock(block);
+    setForm(toForm(block));
+    setDialogOpen(true);
+  };
+
+  const handleTypeChange = (type: BlockType) => {
+    setForm(DEFAULT_BY_TYPE[type]);
+  };
+
+  const saveBlock = async () => {
+    if (!pageId) return;
+
+    // Basic validations
+    if (form.type === 'link' && !form.url) {
+      toast.error('Link URL is required');
+      return;
+    }
+    if (form.type === 'whatsapp_cta' && !form.phone) {
+      toast.error('WhatsApp phone is required');
+      return;
+    }
+
+    setSavingBlock(true);
+    try {
+      const supabase = createClient();
+      const settings = toSettings(form);
+
+      if (editingBlock) {
+        const { error } = await supabase
+          .from('page_blocks')
+          .update({
+            type: form.type,
+            settings,
+          })
+          .eq('id', editingBlock.id)
+          .eq('page_id', pageId);
+
+        if (error) throw error;
+
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.id === editingBlock.id
+              ? { ...b, type: form.type, settings }
+              : b,
+          ),
+        );
+        toast.success('Block updated');
+      } else {
+        const payload = {
+          page_id: pageId,
+          type: form.type,
+          settings,
+          sort_order: nextSortOrder,
+          is_enabled: true,
+        };
+
+        const { data, error } = await supabase
+          .from('page_blocks')
+          .insert(payload)
+          .select('*')
+          .single();
+
+        if (error) throw error;
+
+        setBlocks((prev) => [...prev, data]);
+        toast.success('Block added');
+      }
+
+      setDialogOpen(false);
+    } catch (error) {
+      console.error('Save block error:', error);
+      toast.error('Failed to save block');
+    } finally {
+      setSavingBlock(false);
+    }
+  };
+
+  const toggleBlock = async (block: PageBlock, checked: boolean) => {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('page_blocks')
+        .update({ is_enabled: checked })
+        .eq('id', block.id)
+        .eq('page_id', block.page_id);
+
+      if (error) throw error;
+
+      setBlocks((prev) => prev.map((b) => (b.id === block.id ? { ...b, is_enabled: checked } : b)));
+    } catch (error) {
+      console.error('Toggle block error:', error);
+      toast.error('Failed to update block');
+    }
+  };
+
+  const deleteBlock = async (block: PageBlock) => {
+    const ok = window.confirm('Delete this block? This action cannot be undone.');
+    if (!ok) return;
+
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('page_blocks')
+        .delete()
+        .eq('id', block.id)
+        .eq('page_id', block.page_id);
+
+      if (error) throw error;
+
+      setBlocks((prev) => prev.filter((b) => b.id !== block.id));
+      toast.success('Block deleted');
+    } catch (error) {
+      console.error('Delete block error:', error);
+      toast.error('Failed to delete block');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -123,17 +365,13 @@ export default function PageEditorPage() {
               <Badge variant={page.is_published ? 'default' : 'secondary'}>
                 {page.is_published ? 'Published' : 'Draft'}
               </Badge>
-              
+
               <Button variant="outline" size="sm" asChild>
-                <Link to={`/app/pages/${pageId}/theme`}>
-                  Theme
-                </Link>
+                <Link to={`/app/pages/${pageId}/theme`}>Theme</Link>
               </Button>
 
               <Button variant="outline" size="sm" asChild>
-                <Link to={`/app/pages/${pageId}/analytics`}>
-                  Analytics
-                </Link>
+                <Link to={`/app/pages/${pageId}/analytics`}>Analytics</Link>
               </Button>
 
               {page.is_published && (
@@ -161,7 +399,7 @@ export default function PageEditorPage() {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold">Content Blocks</h2>
-              <Button size="sm">
+              <Button size="sm" onClick={openAddDialog}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Block
               </Button>
@@ -171,29 +409,33 @@ export default function PageEditorPage() {
               {blocks.length === 0 ? (
                 <Card className="p-8 text-center">
                   <p className="text-muted-foreground mb-4">No blocks yet</p>
-                  <Button>
+                  <Button onClick={openAddDialog}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Your First Block
                   </Button>
                 </Card>
               ) : (
-                blocks.map((block) => (
-                  <Card key={block.id} className="p-4">
-                    <div className="flex items-center gap-3">
-                      <GripVertical className="h-5 w-5 text-muted-foreground cursor-move" />
-                      <div className="flex-1">
-                        <p className="font-medium">{block.type}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {block.settings.title || block.settings.buttonText || 'Untitled'}
-                        </p>
+                blocks
+                  .slice()
+                  .sort((a, b) => a.sort_order - b.sort_order)
+                  .map((block) => (
+                    <Card key={block.id} className="p-4">
+                      <div className="flex items-center gap-3">
+                        <GripVertical className="h-5 w-5 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium">{prettyType(block.type)}</p>
+                          <p className="text-sm text-muted-foreground truncate">{summarize(block)}</p>
+                        </div>
+                        <Switch checked={block.is_enabled} onCheckedChange={(v) => toggleBlock(block, !!v)} />
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(block)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => deleteBlock(block)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
-                      <Switch checked={block.is_enabled} />
-                      <Button variant="ghost" size="icon">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </Card>
-                ))
+                    </Card>
+                  ))
               )}
             </div>
           </div>
@@ -205,27 +447,137 @@ export default function PageEditorPage() {
               <div className="text-center">
                 <div className="h-20 w-20 rounded-full bg-muted mx-auto mb-4"></div>
                 <h3 className="font-semibold mb-2">{page.title || 'Page Title'}</h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                  {page.bio || 'Add a bio to your page'}
-                </p>
+                <p className="text-sm text-muted-foreground mb-6">{page.bio || 'Add a bio to your page'}</p>
               </div>
-              
+
               <div className="space-y-3">
-                {blocks.filter(b => b.is_enabled).map((block) => (
-                  <div 
-                    key={block.id} 
-                    className="border rounded-lg p-3 text-sm"
-                  >
-                    {block.type === 'link' && '🔗 Link Block'}
-                    {block.type === 'whatsapp_cta' && '💬 WhatsApp'}
-                    {block.type === 'product' && '🛍️ Product'}
+                {blocks.filter((b) => b.is_enabled).map((block) => (
+                  <div key={block.id} className="border rounded-lg p-3 text-sm">
+                    {prettyType(block.type)} • {summarize(block)}
                   </div>
                 ))}
+                {blocks.filter((b) => b.is_enabled).length === 0 && (
+                  <div className="text-sm text-muted-foreground text-center py-4">No enabled blocks</div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </main>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingBlock ? 'Edit Block' : 'Add Block'}</DialogTitle>
+            <DialogDescription>Configure your block content and save changes.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Block Type</Label>
+              <select
+                className="w-full h-10 rounded-md border bg-background px-3"
+                value={form.type}
+                onChange={(e) => handleTypeChange(e.target.value as BlockType)}
+                disabled={!!editingBlock}
+              >
+                {BLOCK_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.type} value={opt.type}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {form.type === 'link' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Title</Label>
+                  <Input value={form.title || ''} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>URL</Label>
+                  <Input value={form.url || ''} onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))} />
+                </div>
+              </>
+            )}
+
+            {form.type === 'whatsapp_cta' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Button Text</Label>
+                  <Input value={form.buttonText || ''} onChange={(e) => setForm((f) => ({ ...f, buttonText: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input value={form.phone || ''} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="2348012345678" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Message</Label>
+                  <Textarea value={form.message || ''} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} />
+                </div>
+              </>
+            )}
+
+            {form.type === 'product' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Name</Label>
+                  <Input value={form.name || ''} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Price (NGN)</Label>
+                  <Input value={form.price || ''} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea value={form.description || ''} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+                </div>
+              </>
+            )}
+
+            {(form.type === 'announcement' || form.type === 'text') && (
+              <div className="space-y-2">
+                <Label>Text</Label>
+                <Textarea value={form.text || ''} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} />
+              </div>
+            )}
+
+            {form.type === 'embed' && (
+              <div className="space-y-2">
+                <Label>Embed URL</Label>
+                <Input value={form.embedUrl || ''} onChange={(e) => setForm((f) => ({ ...f, embedUrl: e.target.value }))} />
+              </div>
+            )}
+
+            {form.type === 'contact_form' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Form Title</Label>
+                  <Input value={form.title || ''} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Submit Text</Label>
+                  <Input value={form.submitText || ''} onChange={(e) => setForm((f) => ({ ...f, submitText: e.target.value }))} />
+                </div>
+              </>
+            )}
+
+            {(form.type === 'divider' || form.type === 'social_row') && (
+              <p className="text-sm text-muted-foreground">No extra fields for this block type yet.</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={savingBlock}>
+              Cancel
+            </Button>
+            <Button onClick={saveBlock} disabled={savingBlock}>
+              {savingBlock ? 'Saving...' : editingBlock ? 'Update Block' : 'Add Block'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

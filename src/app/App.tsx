@@ -105,6 +105,7 @@ export default function App() {
           
           {/* Public Profile Pages */}
           <Route path="/@:handle" element={<PublicProfilePage />} />
+          <Route path="/:handle" element={<PublicProfilePage />} />
           
           {/* Protected App Routes */}
           <Route
