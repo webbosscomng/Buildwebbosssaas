@@ -174,7 +174,7 @@ export async function uploadAvatar(file: File, pageId: string): Promise<{
   const filePath = `${userId}/${pageId}/avatar.${ext}`;
 
   const { error } = await supabase.storage
-    .from('avatars-webboss-49cc7ee6')
+    .from('avatars')
     .upload(filePath, file, {
       cacheControl: '3600',
       upsert: true,
@@ -185,7 +185,7 @@ export async function uploadAvatar(file: File, pageId: string): Promise<{
 
   // Try signed URL first
   const signed = await supabase.storage
-    .from('avatars-webboss-49cc7ee6')
+    .from('avatars')
     .createSignedUrl(filePath, 3600);
 
   if (!signed.error && signed.data?.signedUrl) {
@@ -193,7 +193,7 @@ export async function uploadAvatar(file: File, pageId: string): Promise<{
   }
 
   // Fallback (if bucket is public)
-  const pub = supabase.storage.from('avatars-webboss-49cc7ee6').getPublicUrl(filePath);
+  const pub = supabase.storage.from('avatars').getPublicUrl(filePath);
   return { path: filePath, url: pub.data.publicUrl };
 }
 
@@ -221,12 +221,12 @@ export async function getAvatarUrl(path: string): Promise<string> {
 
   // 2) Try signed URL from client (works when authenticated + policy allows)
   const signed = await supabase.storage
-    .from('avatars-webboss-49cc7ee6')
+    .from('avatars')
     .createSignedUrl(path, 3600);
   if (!signed.error && signed.data?.signedUrl) return signed.data.signedUrl;
 
   // 3) Fallback public URL if bucket is public
-  const pub = supabase.storage.from('avatars-webboss-49cc7ee6').getPublicUrl(path);
+  const pub = supabase.storage.from('avatars').getPublicUrl(path);
   return pub.data.publicUrl;
 }
 

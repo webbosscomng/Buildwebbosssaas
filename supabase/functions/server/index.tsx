@@ -54,7 +54,7 @@ app.use(
 async function initializeStorage() {
   try {
     const { data: buckets } = await supabaseAdmin.storage.listBuckets();
-    const bucketName = 'avatars-webboss-49cc7ee6';
+    const bucketName = 'avatars';
     const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
     
     if (!bucketExists) {
@@ -303,7 +303,7 @@ app.post('/make-server-49cc7ee6/storage/avatar', async (c) => {
     // Upload to storage
     const fileName = `${user.id}/${pageId}/avatar.${file.name.split('.').pop()}`;
     const { data, error } = await supabaseAdmin.storage
-      .from('avatars-webboss-49cc7ee6')
+      .from('avatars')
       .upload(fileName, await file.arrayBuffer(), {
         contentType: file.type,
         upsert: true,
@@ -316,7 +316,7 @@ app.post('/make-server-49cc7ee6/storage/avatar', async (c) => {
     
     // Get signed URL (valid for 1 year)
     const { data: urlData } = await supabaseAdmin.storage
-      .from('avatars-webboss-49cc7ee6')
+      .from('avatars')
       .createSignedUrl(fileName, 31536000);
     
     return c.json({ 
@@ -339,7 +339,7 @@ app.get('/make-server-49cc7ee6/storage/avatar/:userId/:pageId/*', async (c) => {
     const path = `${userId}/${pageId}/${fileName}`;
     
     const { data, error } = await supabaseAdmin.storage
-      .from('avatars-webboss-49cc7ee6')
+      .from('avatars')
       .createSignedUrl(path, 3600); // 1 hour
     
     if (error) {
