@@ -13,6 +13,7 @@ import type { Page, Subscription } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { motion } from 'motion/react';
 import { getAvatarUrl } from '../../lib/api';
+import { cloudinaryOptimized } from '../../lib/cloudinary';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -268,7 +269,7 @@ export default function Dashboard() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="relative">
                         <Avatar className="h-14 w-14 ring-2 ring-primary/10 group-hover:ring-primary/30 transition-all">
-                          <AvatarImage src={avatarUrls[page.id] || undefined} />
+                          <AvatarImage src={avatarUrls[page.id] ? cloudinaryOptimized(avatarUrls[page.id], 120) : undefined} />
                           <AvatarFallback className="bg-gradient-to-br from-primary/20 to-purple-500/20 text-primary font-bold">
                             {page.title?.slice(0, 2).toUpperCase() || '??'}
                           </AvatarFallback>

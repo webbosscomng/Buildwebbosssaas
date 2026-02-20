@@ -7,6 +7,7 @@ import { Textarea } from '../ui/textarea';
 import type { PageBlock } from '../../../lib/supabase';
 import { createClient } from '../../../lib/supabase';
 import { generateWhatsAppLink, formatCurrency } from '../../../lib/utils';
+import { cloudinaryOptimized } from '../../../lib/cloudinary';
 import { toast } from 'sonner';
 
 interface BlockRendererProps {
@@ -109,9 +110,11 @@ function ProductBlock({ block, onClick }: { block: PageBlock; onClick: () => voi
       {image && (
         <div className="aspect-video w-full bg-muted relative">
           <img 
-            src={image} 
+            src={cloudinaryOptimized(image, 900)} 
             alt={name} 
             className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
             }}

@@ -4,6 +4,7 @@ import { createClient } from '../../lib/supabase';
 import type { Page, PageBlock } from '../../lib/supabase';
 import type { ThemeTokens } from '../../lib/theme';
 import { tokensToCssVars } from '../../lib/theme';
+import { cloudinaryOptimized } from '../../lib/cloudinary';
 import { BlockRenderer } from '../components/blocks/BlockRenderer';
 import { NotFoundState, ErrorState } from '../components/EmptyState';
 import { Skeleton } from '../components/ui/skeleton';
@@ -173,7 +174,7 @@ export default function PublicProfilePage() {
         {/* Profile Header */}
         <div className="text-center mb-8">
           <Avatar className="h-24 w-24 mx-auto mb-4 border-4 border-border">
-            <AvatarImage src={avatarUrl || undefined} alt={page.title || ''} />
+            <AvatarImage src={avatarUrl ? cloudinaryOptimized(avatarUrl, 300) : undefined} alt={page.title || ''} />
             <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
           </Avatar>
           
