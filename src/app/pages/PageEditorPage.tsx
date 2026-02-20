@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router';
-import { ArrowLeft, Plus, Eye, EyeOff, GripVertical, Trash2, ExternalLink, Pencil, ArrowUp, ArrowDown, ImagePlus, Globe } from 'lucide-react';
+import { ArrowLeft, Plus, Eye, EyeOff, GripVertical, Trash2, ExternalLink, Pencil, ArrowUp, ArrowDown, ImagePlus, Globe, MoreHorizontal } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -249,10 +249,24 @@ export default function PageEditorPage() {
   const [savingBlock, setSavingBlock] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingProductImage, setUploadingProductImage] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [compactMobileHeader, setCompactMobileHeader] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('webboss_editor_mobile_header') !== 'classic';
+    } catch {
+      return true;
+    }
+  });
 
   useEffect(() => {
     loadPage();
   }, [pageId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('webboss_editor_mobile_header', compactMobileHeader ? 'compact' : 'classic');
+    } catch {}
+  }, [compactMobileHeader]);
 
   const orderedBlocks = useMemo(
     () => blocks.slice().sort((a, b) => a.sort_order - b.sort_order),
@@ -581,7 +595,62 @@ export default function PageEditorPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {/* Mobile compact header */}
+            <div className="md:hidden relative">
+              {compactMobileHeader ? (
+                <div className="flex items-center gap-2">
+                  <Badge variant={page.is_published ? 'default' : 'secondary'} className="shrink-0">
+                    {page.is_published ? 'Published' : 'Draft'}
+                  </Badge>
+                  <Button onClick={togglePublish} className="shrink-0">
+                    {page.is_published ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+                    {page.is_published ? 'Unpublish' : 'Publish'}
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => setMobileMenuOpen((v) => !v)} aria-label="More actions">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                  <Badge variant={page.is_published ? 'default' : 'secondary'} className="shrink-0">
+                    {page.is_published ? 'Published' : 'Draft'}
+                  </Badge>
+                  <Button variant="outline" size="sm" asChild className="shrink-0">
+                    <Link to={`/app/pages/${pageId}/theme`}>Theme</Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild className="shrink-0">
+                    <Link to={`/app/pages/${pageId}/analytics`}>Analytics</Link>
+                  </Button>
+                  {page.is_published && (
+                    <Button variant="outline" size="sm" asChild className="shrink-0">
+                      <a href={`/@${page.handle}`} target="_blank" rel="noopener noreferrer">View</a>
+                    </Button>
+                  )}
+                  <Button onClick={togglePublish} className="shrink-0">
+                    {page.is_published ? 'Unpublish' : 'Publish'}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setCompactMobileHeader(true)} className="shrink-0">Use compact</Button>
+                </div>
+              )}
+
+              {mobileMenuOpen && compactMobileHeader && (
+                <div className="absolute right-0 mt-2 w-44 rounded-lg border bg-background shadow-lg z-20 p-1">
+                  <Button variant="ghost" className="w-full justify-start" asChild><Link to={`/app/pages/${pageId}/theme`}>Theme</Link></Button>
+                  <Button variant="ghost" className="w-full justify-start" asChild><Link to={`/app/pages/${pageId}/analytics`}>Analytics</Link></Button>
+                  {page.is_published && (
+                    <Button variant="ghost" className="w-full justify-start" asChild>
+                      <a href={`/@${page.handle}`} target="_blank" rel="noopener noreferrer">View page</a>
+                    </Button>
+                  )}
+                  <Button variant="ghost" className="w-full justify-start" onClick={() => { setCompactMobileHeader(false); setMobileMenuOpen(false); }}>
+                    Switch to classic
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop row */}
+            <div className="hidden md:flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
               <Badge variant={page.is_published ? 'default' : 'secondary'} className="shrink-0">
                 {page.is_published ? 'Published' : 'Draft'}
               </Badge>
