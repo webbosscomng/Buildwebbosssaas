@@ -1,6 +1,7 @@
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { getAccessToken } from './auth';
 import { createClient } from './supabase';
+import { uploadToCloudinary, isCloudinaryConfigured } from './cloudinary';
 import { RESERVED_HANDLES } from './utils';
 
 const API_BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-49cc7ee6`;
@@ -163,6 +164,13 @@ export async function uploadAvatar(file: File, pageId: string): Promise<{
   path: string;
   url: string;
 }> {
+  // Preferred path: Cloudinary CDN
+  if (isCloudinaryConfigured()) {
+    const result = await uploadToCloudinary(file, `webboss/avatars/${pageId}`);
+    return { path: result.secureUrl, url: result.secureUrl };
+  }
+
+  // Fallback: Supabase Storage
   const supabase = createClient();
 
   const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -183,16 +191,11 @@ export async function uploadAvatar(file: File, pageId: string): Promise<{
 
   if (error) throw error;
 
-  // Try signed URL first
-  const signed = await supabase.storage
-    .from('avatars')
-    .createSignedUrl(filePath, 3600);
-
+  const signed = await supabase.storage.from('avatars').createSignedUrl(filePath, 3600);
   if (!signed.error && signed.data?.signedUrl) {
     return { path: filePath, url: signed.data.signedUrl };
   }
 
-  // Fallback (if bucket is public)
   const pub = supabase.storage.from('avatars').getPublicUrl(filePath);
   return { path: filePath, url: pub.data.publicUrl };
 }
@@ -232,6 +235,13 @@ export async function getAvatarUrl(path: string): Promise<string> {
 
 // Upload product image to Supabase Storage (public bucket)
 export async function uploadProductImage(file: File, pageId: string): Promise<{ path: string; url: string }> {
+  // Preferred path: Cloudinary CDN
+  if (isCloudinaryConfigured()) {
+    const result = await uploadToCloudinary(file, `webboss/products/${pageId}`);
+    return { path: result.secureUrl, url: result.secureUrl };
+  }
+
+  // Fallback: Supabase Storage
   const supabase = createClient();
 
   const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -240,7 +250,6 @@ export async function uploadProductImage(file: File, pageId: string): Promise<{ 
   if (!userId) throw new Error('Not authenticated');
 
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-  // Folder format for strict storage policy: {user_id}/{page_id}/{filename}
   const filePath = `${userId}/${pageId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
   const { error } = await supabase.storage
