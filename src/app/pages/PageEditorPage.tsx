@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { createClient } from '../../lib/supabase';
-import { uploadAvatar } from '../../lib/api';
+import { uploadAvatar, uploadProductImage } from '../../lib/api';
 import { useAuth } from '../App';
 import type { Page, PageBlock } from '../../lib/supabase';
 import { toast } from 'sonner';
@@ -133,6 +133,7 @@ export default function PageEditorPage() {
   const [form, setForm] = useState<BlockFormState>(DEFAULT_BY_TYPE.link);
   const [savingBlock, setSavingBlock] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingProductImage, setUploadingProductImage] = useState(false);
 
   useEffect(() => {
     loadPage();
@@ -227,6 +228,26 @@ export default function PageEditorPage() {
       toast.error('Failed to upload image');
     } finally {
       setUploadingAvatar(false);
+    }
+  };
+
+  const handleProductImageUpload = async (file?: File | null) => {
+    if (!file || !pageId) return;
+    setUploadingProductImage(true);
+
+    try {
+      const uploaded = await uploadProductImage(file, pageId);
+      setForm((f) => ({ ...f, image: uploaded.url }));
+      toast.success('Product image uploaded');
+    } catch (e: any) {
+      console.error(e);
+      if (String(e?.message || '').toLowerCase().includes('bucket')) {
+        toast.error('Create a public Supabase bucket named product-images first.');
+      } else {
+        toast.error('Failed to upload product image');
+      }
+    } finally {
+      setUploadingProductImage(false);
     }
   };
 
@@ -633,7 +654,20 @@ export default function PageEditorPage() {
                     onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))}
                     placeholder="https://..."
                   />
-                  <p className="text-xs text-muted-foreground">Tip: paste a direct image link (jpg/png/webp).</p>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-primary cursor-pointer">
+                      {uploadingProductImage ? 'Uploading product image...' : 'Upload product image'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingProductImage}
+                        onChange={(e) => handleProductImageUpload(e.target.files?.[0])}
+                      />
+                    </label>
+                    <span className="text-xs text-muted-foreground">(uses Supabase bucket: product-images)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Tip: paste a direct image link or upload a file.</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>

@@ -193,3 +193,23 @@ export async function getAvatarUrl(path: string): Promise<string> {
 
   return result.url;
 }
+
+// Upload product image to Supabase Storage (public bucket)
+export async function uploadProductImage(file: File, pageId: string): Promise<{ path: string; url: string }> {
+  const supabase = createClient();
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const filePath = `${pageId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from('product-images')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type || 'image/jpeg',
+    });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
+  return { path: filePath, url: data.publicUrl };
+}
