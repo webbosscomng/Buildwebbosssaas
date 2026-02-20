@@ -12,6 +12,7 @@ import { useAuth } from '../App';
 import type { Page, Subscription } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { motion } from 'motion/react';
+import { getAvatarUrl } from '../../lib/api';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [pages, setPages] = useState<Page[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
+  const [avatarUrls, setAvatarUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadData();
@@ -38,6 +40,24 @@ export default function Dashboard() {
         .order('created_at', { ascending: false });
 
       setPages(pagesData || []);
+
+      // Resolve avatar signed URLs (non-fatal)
+      const pagesWithAvatars = (pagesData || []).filter(p => !!p.avatar_path);
+      const results = await Promise.all(
+        pagesWithAvatars.map(async (p) => {
+          try {
+            const url = await getAvatarUrl(p.avatar_path as any);
+            return [p.id, url] as const;
+          } catch {
+            return [p.id, ''] as const;
+          }
+        }),
+      );
+      const map: Record<string, string> = {};
+      for (const [id, url] of results) {
+        if (url) map[id] = url;
+      }
+      setAvatarUrls(map);
 
       // Load subscription
       const { data: subData } = await supabase
@@ -241,7 +261,7 @@ export default function Dashboard() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="relative">
                         <Avatar className="h-14 w-14 ring-2 ring-primary/10 group-hover:ring-primary/30 transition-all">
-                          <AvatarImage src={page.avatar_path || undefined} />
+                          <AvatarImage src={avatarUrls[page.id] || undefined} />
                           <AvatarFallback className="bg-gradient-to-br from-primary/20 to-purple-500/20 text-primary font-bold">
                             {page.title?.slice(0, 2).toUpperCase() || '??'}
                           </AvatarFallback>

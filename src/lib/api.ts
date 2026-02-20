@@ -1,5 +1,6 @@
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { getAccessToken } from './auth';
+import { createClient } from './supabase';
 import { RESERVED_HANDLES } from './utils';
 
 const API_BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-49cc7ee6`;
@@ -19,7 +20,7 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   }
 
   // Only set JSON content-type when body is not FormData
-  if (!(options.body instanceof FormData) && !('Content-Type' in (headers as any))) {
+  if (!(options.body instanceof FormData) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
 
@@ -157,59 +158,38 @@ export async function getAnalyticsSummary(
   }
 }
 
-// Upload avatar (using Supabase Storage directly)
+// Upload avatar (private bucket + signed URLs via Edge Function)
 export async function uploadAvatar(file: File, pageId: string): Promise<{
   path: string;
   url: string;
 }> {
-  try {
-    const supabase = createClient();
-    
-    // Generate a unique file name
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${pageId}-${Date.now()}.${fileExt}`;
-    const filePath = `avatars/${fileName}`;
+  const form = new FormData();
+  form.append('file', file);
+  form.append('pageId', pageId);
 
-    // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
-      .from('pages')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true,
-      });
-
-    if (error) {
-      console.error('Avatar upload error:', error);
-      throw error;
-    }
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('pages')
-      .getPublicUrl(filePath);
-
-    return {
-      path: filePath,
-      url: urlData.publicUrl,
-    };
-  } catch (error) {
-    console.error('Error uploading avatar:', error);
-    throw new Error('Failed to upload avatar');
-  }
+  return fetchAPI('/storage/avatar', {
+    method: 'POST',
+    body: form,
+  });
 }
 
-// Get signed URL for avatar (using Supabase Storage directly)
+// Get signed URL for avatar
 export async function getAvatarUrl(path: string): Promise<string> {
-  try {
-    const supabase = createClient();
-    
-    const { data } = supabase.storage
-      .from('pages')
-      .getPublicUrl(path);
+  // Backward compatible: if path is already a URL, return it.
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
 
-    return data.publicUrl;
-  } catch (error) {
-    console.error('Error getting avatar URL:', error);
-    throw new Error('Failed to get avatar URL');
+  // Edge Function route expects: /storage/avatar/:userId/:pageId/*
+  // Stored path format: `${userId}/${pageId}/avatar.ext`
+  const [userId, pageId, ...rest] = path.split('/');
+  const fileName = rest.join('/');
+  if (!userId || !pageId || !fileName) {
+    throw new Error('Invalid avatar path');
   }
+
+  const result = await fetchAPI(`/storage/avatar/${encodeURIComponent(userId)}/${encodeURIComponent(pageId)}/${encodeURIComponent(fileName)}`, {
+    method: 'GET',
+  });
+
+  return result.url;
 }

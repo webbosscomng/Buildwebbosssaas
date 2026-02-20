@@ -7,7 +7,7 @@ import { NotFoundState, ErrorState } from '../components/EmptyState';
 import { Skeleton } from '../components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Badge } from '../components/ui/badge';
-import { logAnalyticsEvent } from '../../lib/api';
+import { getAvatarUrl, logAnalyticsEvent } from '../../lib/api';
 import { getSessionId } from '../../lib/utils';
 
 export default function PublicProfilePage() {
@@ -16,10 +16,36 @@ export default function PublicProfilePage() {
   const [blocks, setBlocks] = useState<PageBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     loadPage();
   }, [handle]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolveAvatar() {
+      if (!page?.avatar_path) {
+        setAvatarUrl(null);
+        return;
+      }
+
+      try {
+        const url = await getAvatarUrl(page.avatar_path);
+        if (!cancelled) setAvatarUrl(url);
+      } catch (e) {
+        // non-fatal
+        if (!cancelled) setAvatarUrl(null);
+      }
+    }
+
+    resolveAvatar();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [page?.avatar_path]);
 
   useEffect(() => {
     if (page) {
@@ -128,7 +154,7 @@ export default function PublicProfilePage() {
         {/* Profile Header */}
         <div className="text-center mb-8">
           <Avatar className="h-24 w-24 mx-auto mb-4 border-4 border-border">
-            <AvatarImage src={page.avatar_path || undefined} alt={page.title || ''} />
+            <AvatarImage src={avatarUrl || undefined} alt={page.title || ''} />
             <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
           </Avatar>
           
