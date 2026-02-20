@@ -1,181 +1,114 @@
 # Web Boss - Quick Start Guide
 
-Get Web Boss running in under 10 minutes! ⚡
+## 🚨 IMPORTANT: Database Setup Required
 
-## ⚡ Speed Run Setup
+Before your app will work, you MUST set up the database in Supabase. This takes about 5 minutes.
 
-### 1. Prerequisites (1 minute)
+## ⚡ Fast Setup (3 Steps)
 
-✅ You need:
-- Active Supabase project
-- Supabase credentials (URL + keys)
-- This project open in Figma Make
+### 1️⃣ Run Schema SQL
 
-### 2. Database Setup (3 minutes)
+1. Open your Supabase project at https://supabase.com/dashboard
+2. Go to **SQL Editor** (left sidebar)
+3. Copy ALL contents from `/schema.sql` in this project
+4. Paste into SQL Editor and click **Run**
 
-**Copy & paste these two SQL files in Supabase SQL Editor:**
+### 2️⃣ Run RLS Policies
 
-1. Open [Supabase Dashboard](https://app.supabase.com) → Your Project → SQL Editor
-2. Paste contents of `schema.sql` → Click **Run** ✅
-3. Paste contents of `schema-rls.sql` → Click **Run** ✅
+1. In SQL Editor, create a new query
+2. Copy ALL contents from `/schema-rls.sql` in this project
+3. Paste and click **Run**
 
-**Done!** Your database is ready 🎉
+### 3️⃣ Create Storage Bucket
 
-### 3. Run the App (1 minute)
+1. Go to **Storage** (left sidebar)
+2. Click **New bucket**
+3. Name it: `pages`
+4. Check **Public bucket**
+5. Click **Create**
 
-The app is now running! Since you're in Figma Make with Supabase connected, everything is configured automatically.
+**Then add storage policies:**
 
-### 4. Create Your First Account (2 minutes)
+Go to the `pages` bucket → **Policies** tab → Add these two policies:
 
-1. Click **Sign Up** 
-2. Enter email, password, and name
-3. Complete the 5-step onboarding
-4. Your first page is live at `/@yourhandle` 🚀
+**Policy 1 - Allow uploads (INSERT):**
+```sql
+(bucket_id = 'pages'::text) AND (auth.role() = 'authenticated'::text)
+```
 
-### 5. Publish Your Page (2 minutes)
+**Policy 2 - Allow public read (SELECT):**
+```sql
+(bucket_id = 'pages'::text)
+```
 
-1. Go to Dashboard
-2. Click "Edit" on your page
-3. Toggle "Publish" ✅
-4. Share `webboss.com.ng/@yourhandle`
+## ✅ That's It!
 
-**Congrats!** You're now a Web Boss 🎉
+Now your app should work. Try:
+1. Sign up for a new account
+2. Go through onboarding
+3. Create your first page
+
+## 🐛 Common Errors
+
+| Error | Solution |
+|-------|----------|
+| `Could not find the table 'public.pages'` | You didn't run schema.sql yet |
+| `Email not confirmed` | Check your email OR disable email confirmation in Supabase Auth settings |
+| `new row violates row-level security policy` | You didn't run schema-rls.sql yet |
+| Avatar upload fails | You didn't create the `pages` storage bucket |
+
+## 📚 Detailed Instructions
+
+See `/DATABASE-SETUP.md` for detailed setup instructions with screenshots and troubleshooting.
+
+## 🔧 Development Tips
+
+### Skip Email Confirmation (Dev Only)
+
+In Supabase Dashboard:
+1. **Authentication** → **Providers**
+2. Click **Email**
+3. Uncheck "Confirm email"
+4. Click **Save**
+
+⚠️ Remember to re-enable this before production!
+
+### Check Database Is Working
+
+After setup, verify in Supabase:
+- **Table Editor** - should see 7+ tables
+- **Authentication** → **Policies** - should see multiple RLS policies
+- **Storage** - should see `pages` bucket
+
+## 🎯 What Gets Created
+
+The SQL scripts create:
+
+**Tables:**
+- `profiles` - User accounts
+- `pages` - Your link-in-bio pages
+- `page_blocks` - Content blocks
+- `analytics_events` - View/click tracking
+- `leads` - Contact form submissions
+- `subscriptions` - Free/Pro plans
+- `themes` - Custom color themes
+- `reserved_handles` - Protected handles
+
+**Features:**
+- Auto-create profile on signup
+- Auto-create free subscription
+- Secure row-level security
+- Public pages at `/@handle`
+- Private analytics
+- Multi-tenant support
+
+## 🆘 Still Having Issues?
+
+1. Check browser console for detailed errors
+2. Check Supabase logs in Dashboard
+3. Verify all SQL ran without errors
+4. Make sure you're using the correct Supabase project
 
 ---
 
-## 🎓 Next Steps
-
-### Learn the Basics (10 minutes)
-
-1. **Add More Blocks**
-   - Click "+ Add Block" in editor
-   - Try WhatsApp CTA, Links, Products
-   - Drag to reorder (coming soon)
-
-2. **Customize Your Theme**
-   - Click "Theme" button
-   - Choose Clean, Midnight, or Vibrant
-   - See instant preview
-
-3. **Check Analytics**
-   - Click "Analytics" button
-   - See views, clicks, visitors
-   - Free plan: 7 days of data
-
-4. **Update Settings**
-   - Go to Settings
-   - Update profile info
-   - Change password
-
----
-
-## 🧪 Test Drive Features
-
-### Try WhatsApp Integration
-```
-1. Add WhatsApp CTA block
-2. Enter: 08012345678
-3. Publish page
-4. Click button on public page
-5. Opens WhatsApp with your number!
-```
-
-### Try Product Block
-```
-1. Add Product block
-2. Name: "My Product"
-3. Price: 5000 (auto-formats to ₦5,000)
-4. WhatsApp: 08012345678
-5. Publish → Visitors can order via WhatsApp!
-```
-
-### Try Analytics
-```
-1. Share your page link
-2. Click it a few times
-3. Check Analytics dashboard
-4. See views & clicks tracked!
-```
-
----
-
-## 🎯 Common Tasks
-
-### How to Add a New Page
-```
-1. Dashboard → "Create Page"
-2. Complete onboarding again (faster flow coming)
-3. Or manually create in database (advanced)
-```
-
-### How to Change Your Handle
-```
-Currently: Edit in database
-Coming soon: Settings → Change Handle
-```
-
-### How to Delete a Page
-```
-1. Dashboard → Page settings
-2. Click "Delete Page"
-Coming soon: Trash/archive system
-```
-
-### How to Upgrade to Pro
-```
-1. Pricing page → "Upgrade to Pro"
-2. Payment integration coming soon
-3. For now: Manual upgrade in database
-```
-
----
-
-## 🐛 Troubleshooting
-
-### "Handle not available" always shows
-**Fix:** Re-run `schema.sql` to populate reserved_handles
-
-### Can't sign up
-**Fix:** Check Supabase Auth is enabled in Dashboard → Authentication
-
-### Page not showing at /@handle
-**Fix:** Make sure `is_published = true` in database
-
-### Analytics not recording
-**Fix:** 
-1. Ensure page is published
-2. Check browser console for errors
-3. Verify RLS policies ran successfully
-
----
-
-## 📚 Learn More
-
-- **Full Guide:** See [SETUP-GUIDE.md](./SETUP-GUIDE.md)
-- **API Docs:** See [API-REFERENCE.md](./API-REFERENCE.md)
-- **Roadmap:** See [ROADMAP.md](./ROADMAP.md)
-- **README:** See [README.md](./README.md)
-
----
-
-## 💬 Get Help
-
-- **Documentation:** All .md files in this project
-- **Supabase Docs:** https://supabase.com/docs
-- **React Router:** https://reactrouter.com
-- **Tailwind CSS:** https://tailwindcss.com
-
----
-
-## 🎉 You're All Set!
-
-You now have a fully functional link-in-bio platform. Time to:
-
-1. ✅ Build your first page
-2. ✅ Share it with the world
-3. ✅ Track your analytics
-4. ✅ Grow your audience
-
-**Welcome to Web Boss!** 🚀
-
-Made in Nigeria 🇳🇬 for Nigerian Creators
+**Ready to build?** Run the SQL, create the bucket, and start building your link-in-bio empire! 🚀

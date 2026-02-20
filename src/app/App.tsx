@@ -38,8 +38,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background relative overflow-hidden">
+        {/* Animated background */}
+        <div className="absolute inset-0 gradient-mesh opacity-40 -z-10" />
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/20 rounded-full blur-3xl animate-float -z-10" />
+        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl animate-float -z-10" style={{ animationDelay: '1.5s' }} />
+        
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent"></div>
+          <div className="absolute inset-0 animate-pulse-glow bg-primary/20 rounded-full"></div>
+        </div>
+        <p className="text-muted-foreground mt-6 text-lg font-medium animate-pulse">Loading...</p>
       </div>
     );
   }

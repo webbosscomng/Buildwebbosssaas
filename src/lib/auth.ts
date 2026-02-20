@@ -17,6 +17,7 @@ export async function signUp(email: string, password: string, fullName: string) 
       data: {
         full_name: fullName,
       },
+      emailRedirectTo: `${window.location.origin}/app/onboarding`,
     },
   });
   
@@ -91,4 +92,20 @@ export async function getAccessToken(): Promise<string | null> {
   const supabase = createClient();
   const { data } = await supabase.auth.getSession();
   return data.session?.access_token || null;
+}
+
+// Resend confirmation email
+export async function resendConfirmationEmail(email: string) {
+  const supabase = createClient();
+  
+  const { data, error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+    options: {
+      emailRedirectTo: `${window.location.origin}/app/onboarding`,
+    },
+  });
+  
+  if (error) throw error;
+  return data;
 }

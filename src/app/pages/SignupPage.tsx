@@ -4,12 +4,13 @@ import { Zap, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { FormField } from '../components/FormField';
-import { projectId } from '/utils/supabase/info';
+import { signUp } from '../../lib/auth';
 import { toast } from 'sonner';
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -53,40 +54,31 @@ export default function SignupPage() {
     }
 
     setLoading(true);
+    setSuccess(false);
 
     try {
-      // Call the server signup endpoint
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-49cc7ee6/auth/signup`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-            full_name: formData.fullName,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Signup failed');
+      const result = await signUp(formData.email, formData.password, formData.fullName);
+      
+      // Check if email confirmation is required
+      if (result.user && !result.session) {
+        // Email confirmation required
+        toast.success('Account created! Please check your email to confirm your account.', {
+          duration: 5000,
+        });
+        // Don't navigate, show confirmation message
+        setSuccess(true);
+        setErrors({ 
+          general: '✅ Success! We sent a confirmation email to ' + formData.email + '. Please check your inbox and click the confirmation link to activate your account.' 
+        });
+      } else {
+        // Auto-confirmed, proceed to onboarding
+        toast.success('Account created successfully!');
+        navigate('/app/onboarding');
       }
-
-      toast.success('Account created! Redirecting to onboarding...');
-      
-      // Now sign in with the credentials
-      const { signIn } = await import('../../lib/auth');
-      await signIn(formData.email, formData.password);
-      
-      navigate('/app/onboarding');
     } catch (error: any) {
       console.error('Signup error:', error);
       toast.error(error.message || 'Failed to create account');
+      setSuccess(false);
       setErrors({ general: error.message });
     } finally {
       setLoading(false);
@@ -117,7 +109,11 @@ export default function SignupPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {errors.general && (
-                <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-950/20 rounded-md">
+                <div className={`p-3 text-sm rounded-md ${
+                  success 
+                    ? 'text-green-600 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800' 
+                    : 'text-red-600 bg-red-50 dark:bg-red-950/20'
+                }`}>
                   {errors.general}
                 </div>
               )}

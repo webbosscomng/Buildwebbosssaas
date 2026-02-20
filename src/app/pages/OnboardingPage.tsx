@@ -92,7 +92,18 @@ export default function OnboardingPage() {
       }
     } catch (error) {
       console.error('Handle check error:', error);
-      setHandleStatus({ checking: false, available: false, message: 'Error checking handle' });
+      
+      // Check if error is due to missing tables
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST205') {
+        setHandleStatus({ 
+          checking: false, 
+          available: false, 
+          message: '⚠️ Database not set up. Please run schema.sql in Supabase SQL Editor. See DATABASE-SETUP.md for instructions.' 
+        });
+        toast.error('Database tables not found. Check console for setup instructions.');
+      } else {
+        setHandleStatus({ checking: false, available: false, message: 'Error checking handle' });
+      }
     }
   };
 
@@ -139,6 +150,13 @@ export default function OnboardingPage() {
         .single();
 
       if (pageError) {
+        console.error('Page creation error:', pageError);
+        
+        // Check if error is due to missing tables
+        if (pageError.code === 'PGRST205' || pageError.message?.includes('table')) {
+          throw new Error('⚠️ Database not set up. Please run schema.sql in Supabase SQL Editor. See DATABASE-SETUP.md in the project root for complete setup instructions.');
+        }
+        
         throw new Error(pageError.message);
       }
 

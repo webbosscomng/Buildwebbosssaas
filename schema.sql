@@ -76,9 +76,6 @@ CREATE TABLE IF NOT EXISTS pages (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT handle_format CHECK (
     handle ~ '^[a-z0-9_]{3,30}$'
-  ),
-  CONSTRAINT handle_not_reserved CHECK (
-    handle NOT IN (SELECT handle FROM reserved_handles)
   )
 );
 
@@ -235,6 +232,24 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION handle_new_user();
+
+-- Validate handle is not reserved
+CREATE OR REPLACE FUNCTION check_handle_not_reserved()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM reserved_handles WHERE handle = NEW.handle) THEN
+    RAISE EXCEPTION 'Handle "%" is reserved and cannot be used', NEW.handle;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to check reserved handles on insert/update
+DROP TRIGGER IF EXISTS validate_page_handle ON pages;
+CREATE TRIGGER validate_page_handle
+  BEFORE INSERT OR UPDATE OF handle ON pages
+  FOR EACH ROW
+  EXECUTE FUNCTION check_handle_not_reserved();
 
 -- ============================================================================
 -- UTILITY VIEWS

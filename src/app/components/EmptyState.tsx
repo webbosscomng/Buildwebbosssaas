@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertCircle, Inbox, Search, FileQuestion } from 'lucide-react';
-import { Button } from '../ui/button';
+import { Button } from './ui/button';
 
 interface EmptyStateProps {
   icon?: React.ReactNode;

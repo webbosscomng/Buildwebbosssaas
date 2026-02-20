@@ -1,9 +1,9 @@
 import React from 'react';
 import { ExternalLink, MessageCircle, Youtube, Mail, Image as ImageIcon } from 'lucide-react';
-import { Button } from '../../ui/button';
-import { Card } from '../../ui/card';
-import { Input } from '../../ui/input';
-import { Textarea } from '../../ui/textarea';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Input } from '../ui/input';
+import { Textarea } from '../ui/textarea';
 import type { PageBlock } from '../../../lib/supabase';
 import { generateWhatsAppLink, formatCurrency } from '../../../lib/utils';
 

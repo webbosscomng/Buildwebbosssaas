@@ -1,5 +1,7 @@
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { getAccessToken } from './auth';
+import { createClient } from './supabase';
+import { RESERVED_HANDLES } from './utils';
 
 const API_BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-49cc7ee6`;
 
@@ -31,15 +33,53 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   return response.json();
 }
 
-// Check handle availability
+// Check handle availability (using Supabase directly)
 export async function checkHandleAvailability(handle: string): Promise<{
   available: boolean;
   reason?: string;
 }> {
-  return fetchAPI(`/handles/${handle}/available`);
+  try {
+    // Check if handle is reserved
+    if (RESERVED_HANDLES.includes(handle.toLowerCase())) {
+      return {
+        available: false,
+        reason: 'This handle is reserved',
+      };
+    }
+
+    // Check if handle exists in database
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('pages')
+      .select('handle')
+      .eq('handle', handle.toLowerCase())
+      .maybeSingle();
+
+    if (error) {
+      console.error('Handle check error:', error);
+      throw error;
+    }
+
+    if (data) {
+      return {
+        available: false,
+        reason: 'This handle is already taken',
+      };
+    }
+
+    return {
+      available: true,
+    };
+  } catch (error) {
+    console.error('Error checking handle availability:', error);
+    // In case of error, assume available to not block the user
+    return {
+      available: true,
+    };
+  }
 }
 
-// Log analytics event
+// Log analytics event (using Supabase directly)
 export async function logAnalyticsEvent(data: {
   page_id: string;
   event_type: 'page_view' | 'link_click';
@@ -47,13 +87,32 @@ export async function logAnalyticsEvent(data: {
   meta?: Record<string, any>;
   session_id?: string;
 }): Promise<{ success: boolean }> {
-  return fetchAPI('/analytics/event', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+  try {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('analytics_events')
+      .insert({
+        page_id: data.page_id,
+        event_type: data.event_type,
+        block_id: data.block_id || null,
+        meta: data.meta || {},
+        session_id: data.session_id || null,
+      });
+
+    if (error) {
+      console.error('Analytics event error:', error);
+      // Don't throw - analytics shouldn't break the app
+      return { success: false };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error logging analytics event:', error);
+    return { success: false };
+  }
 }
 
-// Get analytics summary
+// Get analytics summary (using Supabase directly)
 export async function getAnalyticsSummary(
   pageId: string,
   days: number = 7
@@ -65,37 +124,117 @@ export async function getAnalyticsSummary(
   };
   by_day: Record<string, { views: number; clicks: number }>;
 }> {
-  return fetchAPI(`/analytics/${pageId}/summary?days=${days}`);
+  try {
+    const supabase = createClient();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    // Get all events for the time period
+    const { data: events, error } = await supabase
+      .from('analytics_events')
+      .select('*')
+      .eq('page_id', pageId)
+      .gte('created_at', startDate.toISOString());
+
+    if (error) {
+      console.error('Analytics summary error:', error);
+      throw error;
+    }
+
+    // Calculate summary
+    const views = events?.filter(e => e.event_type === 'page_view') || [];
+    const clicks = events?.filter(e => e.event_type === 'link_click') || [];
+    const uniqueVisitors = new Set(events?.map(e => e.session_id).filter(Boolean)).size;
+
+    // Group by day
+    const by_day: Record<string, { views: number; clicks: number }> = {};
+    events?.forEach(event => {
+      const date = new Date(event.created_at).toISOString().split('T')[0];
+      if (!by_day[date]) {
+        by_day[date] = { views: 0, clicks: 0 };
+      }
+      if (event.event_type === 'page_view') {
+        by_day[date].views++;
+      } else if (event.event_type === 'link_click') {
+        by_day[date].clicks++;
+      }
+    });
+
+    return {
+      summary: {
+        total_views: views.length,
+        total_clicks: clicks.length,
+        unique_visitors: uniqueVisitors,
+      },
+      by_day,
+    };
+  } catch (error) {
+    console.error('Error getting analytics summary:', error);
+    // Return empty data on error
+    return {
+      summary: {
+        total_views: 0,
+        total_clicks: 0,
+        unique_visitors: 0,
+      },
+      by_day: {},
+    };
+  }
 }
 
-// Upload avatar
+// Upload avatar (using Supabase Storage directly)
 export async function uploadAvatar(file: File, pageId: string): Promise<{
   path: string;
   url: string;
 }> {
-  const token = await getAccessToken();
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('pageId', pageId);
-  
-  const response = await fetch(`${API_BASE_URL}/storage/avatar`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token || publicAnonKey}`,
-    },
-    body: formData,
-  });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Upload failed' }));
-    throw new Error(error.error || 'Upload failed');
+  try {
+    const supabase = createClient();
+    
+    // Generate a unique file name
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${pageId}-${Date.now()}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('pages')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true,
+      });
+
+    if (error) {
+      console.error('Avatar upload error:', error);
+      throw error;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('pages')
+      .getPublicUrl(filePath);
+
+    return {
+      path: filePath,
+      url: urlData.publicUrl,
+    };
+  } catch (error) {
+    console.error('Error uploading avatar:', error);
+    throw new Error('Failed to upload avatar');
   }
-  
-  return response.json();
 }
 
-// Get signed URL for avatar
+// Get signed URL for avatar (using Supabase Storage directly)
 export async function getAvatarUrl(path: string): Promise<string> {
-  const response = await fetchAPI(`/storage/avatar/${path}`);
-  return response.url;
+  try {
+    const supabase = createClient();
+    
+    const { data } = supabase.storage
+      .from('pages')
+      .getPublicUrl(path);
+
+    return data.publicUrl;
+  } catch (error) {
+    console.error('Error getting avatar URL:', error);
+    throw new Error('Failed to get avatar URL');
+  }
 }
