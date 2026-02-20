@@ -268,10 +268,10 @@ function BrandIcon({ platform }: { platform: string }) {
   };
 
   const icon = map[key];
-  if (!icon) return <Globe className="h-4 w-4" />;
+  if (!icon) return <Globe className="h-5 w-5" />;
 
   return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true" role="img">
+    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true" role="img">
       <path d={icon.path} fill={`#${icon.hex}`} />
     </svg>
   );
@@ -290,6 +290,7 @@ function SocialRowBlock({ block, onClick }: { block: PageBlock; onClick: () => v
         .filter((s: any) => s?.url)
         .map((social: any, index: number) => {
           const platform = String(social.platform || social.name || '').toLowerCase();
+          const label = social.name || social.platform || 'Link';
           return (
             <a
               key={index}
@@ -297,10 +298,12 @@ function SocialRowBlock({ block, onClick }: { block: PageBlock; onClick: () => v
               target="_blank"
               rel="noopener noreferrer"
               onClick={onClick}
-              className="flex items-center gap-2 px-4 py-2 rounded-full border border-border hover:bg-accent transition-colors"
+              aria-label={label}
+              title={label}
+              className="h-11 w-11 rounded-full border border-border bg-card hover:bg-accent transition-colors flex items-center justify-center"
             >
               <BrandIcon platform={platform} />
-              <span className="text-sm font-medium">{social.name || social.platform || 'Link'}</span>
+              <span className="sr-only">{label}</span>
             </a>
           );
         })}
