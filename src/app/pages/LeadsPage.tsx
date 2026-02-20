@@ -36,6 +36,8 @@ export default function LeadsPage() {
   const [pageFilter, setPageFilter] = useState('all');
   const [rangeFilter, setRangeFilter] = useState<'7' | '30' | '90' | 'all'>('30');
   const [query, setQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
 
   useEffect(() => {
     load();
@@ -102,6 +104,16 @@ export default function LeadsPage() {
       return byPage && byRange && byQuery;
     });
   }, [rows, pageFilter, rangeFilter, query]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageFilter, rangeFilter, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage]);
 
   const exportCSV = () => {
     const csv = toCSV(filtered);
@@ -206,7 +218,10 @@ export default function LeadsPage() {
           </Card>
         ) : (
           <div className="space-y-3">
-            {filtered.map((lead) => (
+            <div className="text-sm text-muted-foreground">
+              Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length} leads
+            </div>
+            {paginated.map((lead) => (
               <Card key={lead.id} className="p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div className="min-w-0">
@@ -248,6 +263,26 @@ export default function LeadsPage() {
                 </div>
               </Card>
             ))}
+
+            <div className="flex items-center justify-between gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </main>
