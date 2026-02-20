@@ -9,13 +9,14 @@ import { createClient, type Lead, type Page } from '../../lib/supabase';
 import { useAuth } from '../App';
 import { toast } from 'sonner';
 
-type LeadRow = Lead & { page?: Pick<Page, 'id' | 'handle' | 'title'> | null };
+type LeadRow = Lead & { page?: Pick<Page, 'id' | 'handle' | 'title'> | null; is_contacted?: boolean; contacted_at?: string | null };
 
 function toCSV(rows: LeadRow[]) {
-  const header = ['created_at', 'page_handle', 'page_title', 'name', 'email', 'phone', 'message', 'source_url'];
+  const header = ['created_at', 'status', 'page_handle', 'page_title', 'name', 'email', 'phone', 'message', 'source_url'];
   const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const lines = rows.map((r) => [
     r.created_at,
+    r.is_contacted ? 'contacted' : 'new',
     r.page?.handle || '',
     r.page?.title || '',
     r.name || '',
@@ -35,6 +36,7 @@ export default function LeadsPage() {
 
   const [pageFilter, setPageFilter] = useState('all');
   const [rangeFilter, setRangeFilter] = useState<'7' | '30' | '90' | 'all'>('30');
+  const [contactFilter, setContactFilter] = useState<'all' | 'new' | 'contacted'>('all');
   const [query, setQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
@@ -93,6 +95,13 @@ export default function LeadsPage() {
           ? true
           : now - new Date(r.created_at).getTime() <= days * 24 * 60 * 60 * 1000;
 
+      const byStatus =
+        contactFilter === 'all'
+          ? true
+          : contactFilter === 'contacted'
+            ? !!r.is_contacted
+            : !r.is_contacted;
+
       const q = query.trim().toLowerCase();
       const byQuery =
         !q ||
@@ -101,13 +110,13 @@ export default function LeadsPage() {
         (r.phone || '').toLowerCase().includes(q) ||
         (r.message || '').toLowerCase().includes(q) ||
         (r.page?.handle || '').toLowerCase().includes(q);
-      return byPage && byRange && byQuery;
+      return byPage && byRange && byStatus && byQuery;
     });
-  }, [rows, pageFilter, rangeFilter, query]);
+  }, [rows, pageFilter, rangeFilter, contactFilter, query]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [pageFilter, rangeFilter, query]);
+  }, [pageFilter, rangeFilter, contactFilter, query]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = useMemo(() => {
@@ -142,6 +151,31 @@ export default function LeadsPage() {
     }
   };
 
+  const toggleContacted = async (lead: LeadRow) => {
+    const next = !lead.is_contacted;
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('leads')
+        .update({
+          is_contacted: next,
+          contacted_at: next ? new Date().toISOString() : null,
+        } as any)
+        .eq('id', lead.id);
+      if (error) throw error;
+
+      setRows((prev) => prev.map((r) => (r.id === lead.id ? { ...r, is_contacted: next, contacted_at: next ? new Date().toISOString() : null } : r)));
+      toast.success(next ? 'Marked as contacted' : 'Marked as new');
+    } catch (e: any) {
+      console.error(e);
+      if (String(e?.message || '').toLowerCase().includes('column') || String(e?.message || '').includes('is_contacted')) {
+        toast.error('Add leads status columns first: is_contacted, contacted_at');
+      } else {
+        toast.error('Failed to update lead status');
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-muted/20">
       <header className="bg-background border-b sticky top-0 z-50">
@@ -167,7 +201,7 @@ export default function LeadsPage() {
 
       <main className="container mx-auto px-4 py-6 space-y-4">
         <Card className="p-4">
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-5">
             <div className="space-y-2">
               <Label>Filter by page</Label>
               <select
@@ -195,6 +229,19 @@ export default function LeadsPage() {
                 <option value="30">Last 30 days</option>
                 <option value="90">Last 90 days</option>
                 <option value="all">All time</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <select
+                className="w-full h-10 rounded-md border bg-background px-3"
+                value={contactFilter}
+                onChange={(e) => setContactFilter(e.target.value as any)}
+              >
+                <option value="all">All</option>
+                <option value="new">New</option>
+                <option value="contacted">Contacted</option>
               </select>
             </div>
 
@@ -231,7 +278,12 @@ export default function LeadsPage() {
                       <span>{new Date(lead.created_at).toLocaleString()}</span>
                     </div>
 
-                    <div className="font-medium">{lead.name || 'Anonymous'}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium">{lead.name || 'Anonymous'}</div>
+                      <span className={"text-[11px] px-2 py-0.5 rounded-full border " + (lead.is_contacted ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30' : 'bg-amber-500/10 text-amber-700 border-amber-500/30')}>
+                        {lead.is_contacted ? 'Contacted' : 'New'}
+                      </span>
+                    </div>
 
                     <div className="text-sm text-muted-foreground mt-1 space-y-1">
                       {lead.email && (
@@ -251,15 +303,25 @@ export default function LeadsPage() {
                     )}
                   </div>
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteLead(lead.id)}
-                    className="self-start hover:bg-destructive/10 hover:text-destructive"
-                    title="Delete lead"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1 self-start">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleContacted(lead)}
+                      title={lead.is_contacted ? 'Mark as new' : 'Mark as contacted'}
+                    >
+                      {lead.is_contacted ? 'Mark new' : 'Mark contacted'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteLead(lead.id)}
+                      className="hover:bg-destructive/10 hover:text-destructive"
+                      title="Delete lead"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </Card>
             ))}
