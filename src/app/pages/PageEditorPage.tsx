@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router';
-import { ArrowLeft, Plus, Eye, EyeOff, GripVertical, Trash2, ExternalLink, Pencil, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowLeft, Plus, Eye, EyeOff, GripVertical, Trash2, ExternalLink, Pencil, ArrowUp, ArrowDown, ImagePlus } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -648,15 +648,25 @@ export default function PageEditorPage() {
                   <Input value={form.price || ''} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Image URL</Label>
-                  <Input
-                    value={form.image || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))}
-                    placeholder="https://..."
-                  />
+                  <Label>Product Image</Label>
+
+                  {form.image ? (
+                    <img
+                      src={form.image}
+                      alt="Product"
+                      className="h-28 w-full rounded-md border object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="h-28 w-full rounded-md border border-dashed flex items-center justify-center text-sm text-muted-foreground">
+                      No image selected
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-primary cursor-pointer">
-                      {uploadingProductImage ? 'Uploading product image...' : 'Upload product image'}
+                    <label className="inline-flex items-center gap-2 text-sm text-primary cursor-pointer">
+                      <ImagePlus className="h-4 w-4" />
+                      {uploadingProductImage ? 'Uploading image...' : 'Choose image'}
                       <input
                         type="file"
                         accept="image/*"
@@ -665,9 +675,28 @@ export default function PageEditorPage() {
                         onChange={(e) => handleProductImageUpload(e.target.files?.[0])}
                       />
                     </label>
-                    <span className="text-xs text-muted-foreground">(uses Supabase bucket: product-images)</span>
+                    {form.image && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setForm((f) => ({ ...f, image: '' }))}
+                      >
+                        Remove
+                      </Button>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground">Tip: paste a direct image link or upload a file.</p>
+
+                  <details className="text-xs text-muted-foreground">
+                    <summary className="cursor-pointer">Or paste image link</summary>
+                    <div className="mt-2">
+                      <Input
+                        value={form.image || ''}
+                        onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))}
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </details>
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
