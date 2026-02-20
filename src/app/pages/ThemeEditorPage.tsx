@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
-import { Label } from '../components/ui/label';
 import { createClient } from '../../lib/supabase';
 import { useAuth } from '../App';
 import type { Page } from '../../lib/supabase';
@@ -13,13 +12,51 @@ const THEME_PRESETS = [
   { id: 'clean', label: 'Clean', description: 'Simple and professional' },
   { id: 'midnight', label: 'Midnight', description: 'Dark and elegant' },
   { id: 'vibrant', label: 'Vibrant', description: 'Colorful and bold' },
-];
+] as const;
+
+type ThemePresetId = (typeof THEME_PRESETS)[number]['id'];
+
+function ThemeMiniPreview({ theme }: { theme: ThemePresetId }) {
+  return (
+    <div
+      className="relative w-full overflow-hidden rounded-xl border bg-background shadow-sm"
+      data-theme={theme}
+    >
+      {/* phone-ish frame */}
+      <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-background to-background" />
+      <div className="relative p-4">
+        <div className="flex flex-col items-center text-center mb-4">
+          <div className="h-10 w-10 rounded-full bg-muted border" />
+          <div className="mt-2 h-3 w-24 rounded bg-muted" />
+          <div className="mt-2 h-2 w-36 rounded bg-muted" />
+        </div>
+
+        <div className="space-y-2">
+          <div className="h-10 w-full rounded-lg bg-card border" />
+          <div className="h-10 w-full rounded-lg bg-card border" />
+          <div className="h-10 w-full rounded-lg bg-card border" />
+          <div className="h-10 w-full rounded-lg bg-primary/90" />
+        </div>
+
+        <div className="mt-4 flex items-center justify-center gap-2">
+          <div className="h-6 w-6 rounded-full bg-muted border" />
+          <div className="h-6 w-6 rounded-full bg-muted border" />
+          <div className="h-6 w-6 rounded-full bg-muted border" />
+        </div>
+      </div>
+
+      {/* enforce 9:16 preview aspect */}
+      <div className="pointer-events-none absolute inset-0" />
+    </div>
+  );
+}
 
 export default function ThemeEditorPage() {
   const { pageId } = useParams<{ pageId: string }>();
   const { user } = useAuth();
   const [page, setPage] = useState<Page | null>(null);
-  const [selectedTheme, setSelectedTheme] = useState('clean');
+  const [selectedTheme, setSelectedTheme] = useState<ThemePresetId>('clean');
+  const [originalTheme, setOriginalTheme] = useState<ThemePresetId>('clean');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -42,7 +79,9 @@ export default function ThemeEditorPage() {
 
       if (pageData) {
         setPage(pageData);
-        setSelectedTheme(pageData.theme_preset || 'clean');
+        const preset = (pageData.theme_preset || 'clean') as ThemePresetId;
+        setSelectedTheme(preset);
+        setOriginalTheme(preset);
       }
     } catch (error) {
       console.error('Load page error:', error);
@@ -65,6 +104,7 @@ export default function ThemeEditorPage() {
 
       if (error) throw error;
 
+      setOriginalTheme(selectedTheme);
       toast.success('Theme updated!');
     } catch (error) {
       console.error('Save theme error:', error);
@@ -112,33 +152,71 @@ export default function ThemeEditorPage() {
               </div>
             </div>
 
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving...' : 'Save Changes'}
+            <Button onClick={handleSave} disabled={saving || selectedTheme === originalTheme}>
+              {saving ? 'Saving...' : selectedTheme === originalTheme ? 'Saved' : 'Save Changes'}
             </Button>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-xl font-semibold mb-6">Choose a Theme</h2>
-          
-          <div className="grid md:grid-cols-3 gap-6">
-            {THEME_PRESETS.map((theme) => (
-              <Card
-                key={theme.id}
-                className={`p-6 cursor-pointer transition-all ${
-                  selectedTheme === theme.id
-                    ? 'border-primary border-2'
-                    : 'hover:border-primary/50'
-                }`}
-                onClick={() => setSelectedTheme(theme.id)}
-              >
-                <div className="aspect-[9/16] bg-muted rounded-lg mb-4"></div>
-                <h3 className="font-semibold mb-1">{theme.label}</h3>
-                <p className="text-sm text-muted-foreground">{theme.description}</p>
-              </Card>
-            ))}
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-end justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-semibold">Choose a Theme</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Pick a preset. You’ll be able to fine-tune colors, fonts, and buttons next.
+              </p>
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={() => setSelectedTheme(originalTheme)}
+              disabled={selectedTheme === originalTheme}
+            >
+              Reset
+            </Button>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {THEME_PRESETS.map((theme) => {
+              const isSelected = selectedTheme === theme.id;
+              return (
+                <Card
+                  key={theme.id}
+                  role="button"
+                  tabIndex={0}
+                  className={
+                    'p-4 cursor-pointer transition-all border-2 ' +
+                    (isSelected
+                      ? 'border-primary shadow-md'
+                      : 'border-transparent hover:border-primary/40 hover:shadow-sm')
+                  }
+                  onClick={() => setSelectedTheme(theme.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedTheme(theme.id);
+                    }
+                  }}
+                >
+                  <div className="aspect-[9/16] mb-4">
+                    <ThemeMiniPreview theme={theme.id} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold leading-none">{theme.label}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">{theme.description}</p>
+                    </div>
+                    {isSelected && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                        Selected
+                      </span>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </main>
