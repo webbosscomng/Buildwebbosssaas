@@ -558,15 +558,15 @@ export default function PageEditorPage() {
       {/* Header */}
       <header className="bg-background border-b sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" asChild>
-                <Link to="/app">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-3">
+              <Button variant="ghost" size="icon" asChild className="mt-1">
+                <Link to="/app" aria-label="Back to dashboard">
                   <ArrowLeft className="h-4 w-4" />
                 </Link>
               </Button>
               <div>
-                <h1 className="font-semibold">{page.title || 'Untitled Page'}</h1>
+                <h1 className="font-semibold text-2xl leading-tight">{page.title || 'Untitled Page'}</h1>
                 <p className="text-sm text-muted-foreground">@{page.handle}</p>
                 <label className="text-xs text-primary cursor-pointer inline-block mt-1">
                   {uploadingAvatar ? 'Uploading image...' : 'Upload profile image'}
@@ -581,21 +581,21 @@ export default function PageEditorPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Badge variant={page.is_published ? 'default' : 'secondary'}>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+              <Badge variant={page.is_published ? 'default' : 'secondary'} className="shrink-0">
                 {page.is_published ? 'Published' : 'Draft'}
               </Badge>
 
-              <Button variant="outline" size="sm" asChild>
+              <Button variant="outline" size="sm" asChild className="shrink-0">
                 <Link to={`/app/pages/${pageId}/theme`}>Theme</Link>
               </Button>
 
-              <Button variant="outline" size="sm" asChild>
+              <Button variant="outline" size="sm" asChild className="shrink-0">
                 <Link to={`/app/pages/${pageId}/analytics`}>Analytics</Link>
               </Button>
 
               {page.is_published && (
-                <Button variant="outline" size="sm" asChild>
+                <Button variant="outline" size="sm" asChild className="shrink-0">
                   <a href={`/@${page.handle}`} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4 mr-2" />
                     View
@@ -603,7 +603,7 @@ export default function PageEditorPage() {
                 </Button>
               )}
 
-              <Button onClick={togglePublish}>
+              <Button onClick={togglePublish} className="shrink-0">
                 {page.is_published ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
                 {page.is_published ? 'Unpublish' : 'Publish'}
               </Button>
@@ -617,9 +617,9 @@ export default function PageEditorPage() {
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Editor Panel */}
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold">Content Blocks</h2>
-              <Button size="sm" onClick={openAddDialog}>
+            <div className="flex items-center justify-between mb-4 gap-3">
+              <h2 className="text-2xl font-semibold">Content Blocks</h2>
+              <Button size="sm" onClick={openAddDialog} className="shrink-0">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Block
               </Button>
@@ -637,9 +637,9 @@ export default function PageEditorPage() {
               ) : (
                 orderedBlocks.map((block, index) => (
                     <Card key={block.id} className="p-4">
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                         <GripVertical className="h-5 w-5 text-muted-foreground" />
-                        <div className="flex-1 min-w-0">
+                        <div className="basis-full sm:basis-auto flex-1 min-w-0">
                           <p className="font-medium">{prettyType(block.type)}</p>
                           <p className="text-sm text-muted-foreground truncate">{summarize(block)}</p>
                         </div>
