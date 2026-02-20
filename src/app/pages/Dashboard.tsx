@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Plus, ExternalLink, BarChart3, Settings, LogOut, Zap, Sparkles, TrendingUp } from 'lucide-react';
+import { Plus, ExternalLink, BarChart3, Settings, LogOut, Zap, Sparkles, TrendingUp, Inbox } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -137,6 +137,13 @@ export default function Dashboard() {
                 >
                   <TrendingUp className="h-4 w-4" />
                   Dashboard
+                </Link>
+                <Link 
+                  to="/app/leads" 
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                >
+                  <Inbox className="h-4 w-4" />
+                  Leads
                 </Link>
                 <Link 
                   to="/app/settings" 

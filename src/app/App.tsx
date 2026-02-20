@@ -17,6 +17,7 @@ import PagesListPage from './pages/PagesListPage';
 import PageEditorPage from './pages/PageEditorPage';
 import ThemeEditorPage from './pages/ThemeEditorPage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import LeadsPage from './pages/LeadsPage';
 import SettingsPage from './pages/SettingsPage';
 import NotFoundPage from './pages/NotFoundPage';
 
@@ -153,6 +154,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AnalyticsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/app/leads"
+            element={
+              <ProtectedRoute>
+                <LeadsPage />
               </ProtectedRoute>
             }
           />
