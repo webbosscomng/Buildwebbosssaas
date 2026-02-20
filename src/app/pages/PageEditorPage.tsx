@@ -25,6 +25,14 @@ import { BlockRenderer } from '../components/blocks/BlockRenderer';
 
 type BlockType = PageBlock['type'];
 
+type EditableSocial = {
+  platform: string;
+  label: string;
+  icon: string;
+  enabled: boolean;
+  url: string;
+};
+
 type BlockFormState = {
   type: BlockType;
   title?: string;
@@ -43,6 +51,7 @@ type BlockFormState = {
   text?: string;
   submitText?: string;
   socialsText?: string;
+  socials?: EditableSocial[];
 };
 
 const BLOCK_TYPE_OPTIONS: Array<{ type: BlockType; label: string }> = [
@@ -57,11 +66,32 @@ const BLOCK_TYPE_OPTIONS: Array<{ type: BlockType; label: string }> = [
   { type: 'divider', label: 'Divider' },
 ];
 
+const SOCIAL_PLATFORM_PRESETS: Array<{ platform: string; label: string; icon: string }> = [
+  { platform: 'instagram', label: 'Instagram', icon: '📸' },
+  { platform: 'tiktok', label: 'TikTok', icon: '🎵' },
+  { platform: 'facebook', label: 'Facebook', icon: '📘' },
+  { platform: 'x', label: 'X', icon: '𝕏' },
+  { platform: 'telegram', label: 'Telegram', icon: '✈️' },
+  { platform: 'youtube', label: 'YouTube', icon: '▶️' },
+  { platform: 'linkedin', label: 'LinkedIn', icon: '💼' },
+  { platform: 'whatsapp', label: 'WhatsApp', icon: '💬' },
+  { platform: 'other', label: 'Other', icon: '🔗' },
+];
+
 const DEFAULT_BY_TYPE: Record<BlockType, BlockFormState> = {
   link: { type: 'link', title: 'My Link', url: 'https://', icon: '🔗' },
   whatsapp_cta: { type: 'whatsapp_cta', buttonText: 'Chat on WhatsApp', phone: '', message: 'Hi!' },
   product: { type: 'product', name: 'Product Name', price: '5000', description: '', image: '', images: [], whatsappNumber: '' },
-  social_row: { type: 'social_row', socialsText: 'Instagram|https://instagram.com/|📸\nTikTok|https://tiktok.com/|🎵' },
+  social_row: {
+    type: 'social_row',
+    socials: SOCIAL_PLATFORM_PRESETS.map((p) => ({
+      platform: p.platform,
+      label: p.label,
+      icon: p.icon,
+      enabled: false,
+      url: '',
+    })),
+  },
   embed: { type: 'embed', embedUrl: '' },
   contact_form: { type: 'contact_form', title: 'Contact Me', submitText: 'Send' },
   announcement: { type: 'announcement', text: 'Welcome to my page 🎉' },
@@ -93,9 +123,25 @@ function toForm(block: PageBlock): BlockFormState {
       ? [settings.image]
       : [];
 
-  const socials = Array.isArray(settings.socials) ? settings.socials : [];
+  const rawSocials = Array.isArray(settings.socials) ? settings.socials : [];
+  const socials = SOCIAL_PLATFORM_PRESETS.map((preset) => {
+    const existing = rawSocials.find((s: any) => {
+      const p = String(s.platform || '').toLowerCase();
+      const n = String(s.name || '').toLowerCase();
+      return p === preset.platform || n === preset.label.toLowerCase();
+    });
+    return {
+      platform: preset.platform,
+      label: preset.label,
+      icon: existing?.icon || preset.icon,
+      enabled: !!existing,
+      url: existing?.url || '',
+    };
+  });
+
   const socialsText = socials
-    .map((s: any) => [s.name || '', s.url || '', s.icon || ''].join('|'))
+    .filter((s) => s.enabled && s.url)
+    .map((s) => [s.label, s.url, s.icon].join('|'))
     .join('\n');
 
   return {
@@ -105,6 +151,7 @@ function toForm(block: PageBlock): BlockFormState {
     image: settings.image || images[0] || '',
     images,
     socialsText,
+    socials,
   };
 }
 
@@ -127,15 +174,14 @@ function toSettings(form: BlockFormState): Record<string, any> {
       };
     }
     case 'social_row': {
-      const socials = (form.socialsText || '')
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => {
-          const [name, url, icon] = line.split('|').map((v) => (v || '').trim());
-          return { name, url, icon };
-        })
-        .filter((s) => s.url);
+      const socials = (form.socials || [])
+        .filter((s) => s.enabled && s.url.trim())
+        .map((s) => ({
+          platform: s.platform,
+          name: s.label,
+          url: s.url.trim(),
+          icon: s.icon,
+        }));
       return { socials };
     }
     case 'embed': {
@@ -296,7 +342,7 @@ export default function PageEditorPage() {
 
   const openAddDialog = () => {
     setEditingBlock(null);
-    setForm(DEFAULT_BY_TYPE.link);
+    setForm(JSON.parse(JSON.stringify(DEFAULT_BY_TYPE.link)));
     setDialogOpen(true);
   };
 
@@ -307,7 +353,7 @@ export default function PageEditorPage() {
   };
 
   const handleTypeChange = (type: BlockType) => {
-    setForm(DEFAULT_BY_TYPE[type]);
+    setForm(JSON.parse(JSON.stringify(DEFAULT_BY_TYPE[type])));
   };
 
   const saveBlock = async () => {
@@ -814,15 +860,47 @@ export default function PageEditorPage() {
             )}
 
             {form.type === 'social_row' && (
-              <div className="space-y-2">
-                <Label>Social links</Label>
-                <Textarea
-                  value={form.socialsText || ''}
-                  onChange={(e) => setForm((f) => ({ ...f, socialsText: e.target.value }))}
-                  rows={4}
-                  placeholder="Name|https://link|Icon\nInstagram|https://instagram.com/yourname|📸"
-                />
-                <p className="text-xs text-muted-foreground">One per line: Name|URL|Icon (icon optional)</p>
+              <div className="space-y-3">
+                <Label>Social platforms</Label>
+                <p className="text-xs text-muted-foreground">Toggle platforms and add your links.</p>
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {(form.socials || []).map((s, idx) => (
+                    <div key={`${s.platform}-${idx}`} className="border rounded-md p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span>{s.icon}</span>
+                          <span className="text-sm font-medium">{s.label}</span>
+                        </div>
+                        <Switch
+                          checked={s.enabled}
+                          onCheckedChange={(v) =>
+                            setForm((f) => {
+                              const socials = [...(f.socials || [])];
+                              socials[idx] = { ...socials[idx], enabled: !!v };
+                              return { ...f, socials };
+                            })
+                          }
+                        />
+                      </div>
+
+                      {s.enabled && (
+                        <div className="mt-2">
+                          <Input
+                            placeholder={`https://${s.platform}.com/yourname`}
+                            value={s.url}
+                            onChange={(e) =>
+                              setForm((f) => {
+                                const socials = [...(f.socials || [])];
+                                socials[idx] = { ...socials[idx], url: e.target.value };
+                                return { ...f, socials };
+                              })
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

@@ -246,26 +246,43 @@ function ProductBlock({ block, onClick }: { block: PageBlock; onClick: () => voi
 
 function SocialRowBlock({ block, onClick }: { block: PageBlock; onClick: () => void }) {
   const { socials } = block.settings;
-  
+
   if (!socials || socials.length === 0) {
     return null;
   }
-  
+
+  const iconByPlatform: Record<string, string> = {
+    instagram: '📸',
+    tiktok: '🎵',
+    facebook: '📘',
+    x: '𝕏',
+    telegram: '✈️',
+    youtube: '▶️',
+    linkedin: '💼',
+    whatsapp: '💬',
+  };
+
   return (
-    <div className="flex justify-center gap-4 flex-wrap">
-      {socials.map((social: any, index: number) => (
-        <a
-          key={index}
-          href={social.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={onClick}
-          className="flex items-center gap-2 px-4 py-2 rounded-full border border-border hover:bg-accent transition-colors"
-        >
-          {social.icon && <span>{social.icon}</span>}
-          <span className="text-sm font-medium">{social.name}</span>
-        </a>
-      ))}
+    <div className="flex justify-center gap-3 flex-wrap">
+      {socials
+        .filter((s: any) => s?.url)
+        .map((social: any, index: number) => {
+          const platform = String(social.platform || social.name || '').toLowerCase();
+          const icon = social.icon || iconByPlatform[platform] || '🔗';
+          return (
+            <a
+              key={index}
+              href={social.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onClick}
+              className="flex items-center gap-2 px-4 py-2 rounded-full border border-border hover:bg-accent transition-colors"
+            >
+              <span>{icon}</span>
+              <span className="text-sm font-medium">{social.name || social.platform || 'Link'}</span>
+            </a>
+          );
+        })}
     </div>
   );
 }
