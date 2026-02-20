@@ -5,7 +5,9 @@ import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import type { PageBlock } from '../../../lib/supabase';
+import { createClient } from '../../../lib/supabase';
 import { generateWhatsAppLink, formatCurrency } from '../../../lib/utils';
+import { toast } from 'sonner';
 
 interface BlockRendererProps {
   block: PageBlock;
@@ -201,21 +203,49 @@ function EmbedBlock({ block }: { block: PageBlock }) {
 }
 
 function ContactFormBlock({ block }: { block: PageBlock }) {
-  const { title, fields } = block.settings;
+  const { title } = block.settings;
   const [formData, setFormData] = React.useState<Record<string, string>>({});
   const [submitting, setSubmitting] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Basic anti-spam cooldown per session (15s)
+    const cooldownKey = `webboss_lead_last_submit_${block.page_id}`;
+    const last = Number(sessionStorage.getItem(cooldownKey) || 0);
+    if (Date.now() - last < 15000) {
+      toast.error('Please wait a few seconds before sending another message.');
+      return;
+    }
+
     setSubmitting(true);
-    
-    // TODO: Submit to API
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setSubmitting(false);
-    setSubmitted(true);
-    setFormData({});
+
+    try {
+      const supabase = createClient();
+      const payload = {
+        page_id: block.page_id,
+        name: formData.name || null,
+        email: formData.email || null,
+        phone: formData.phone || null,
+        message: formData.message || null,
+        source_url: window.location.href,
+        user_agent: navigator.userAgent,
+      };
+
+      const { error } = await supabase.from('leads').insert(payload);
+      if (error) throw error;
+
+      sessionStorage.setItem(cooldownKey, String(Date.now()));
+      setSubmitted(true);
+      setFormData({});
+      toast.success('Message sent successfully');
+    } catch (err) {
+      console.error('Lead submit error:', err);
+      toast.error('Failed to send message. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
   
   if (submitted) {
@@ -256,6 +286,14 @@ function ContactFormBlock({ block }: { block: PageBlock }) {
             value={formData.email || ''}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             required
+          />
+        </div>
+        <div>
+          <Input
+            type="tel"
+            placeholder="Phone (optional)"
+            value={formData.phone || ''}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
           />
         </div>
         <div>
