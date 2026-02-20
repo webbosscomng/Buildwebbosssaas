@@ -109,11 +109,15 @@ export default function SignupPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {errors.general && (
-                <div className={`p-3 text-sm rounded-md ${
-                  success 
-                    ? 'text-green-600 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800' 
-                    : 'text-red-600 bg-red-50 dark:bg-red-950/20'
-                }`}>
+                <div
+                  role="alert"
+                  aria-live="polite"
+                  className={`p-3 text-sm rounded-md ${
+                    success 
+                      ? 'text-green-600 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800' 
+                      : 'text-red-600 bg-red-50 dark:bg-red-950/20'
+                  }`}
+                >
                   {errors.general}
                 </div>
               )}

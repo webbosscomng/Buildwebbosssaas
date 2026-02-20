@@ -743,6 +743,7 @@ export default function PageEditorPage() {
                                 disabled={index === 0}
                                 onClick={() => moveBlock(block.id, 'up')}
                                 title="Move up"
+                                aria-label={`Move ${prettyType(block.type)} up`}
                               >
                                 <ArrowUp className="h-4 w-4" />
                               </Button>
@@ -753,6 +754,7 @@ export default function PageEditorPage() {
                                 disabled={index === orderedBlocks.length - 1}
                                 onClick={() => moveBlock(block.id, 'down')}
                                 title="Move down"
+                                aria-label={`Move ${prettyType(block.type)} down`}
                               >
                                 <ArrowDown className="h-4 w-4" />
                               </Button>
@@ -760,10 +762,22 @@ export default function PageEditorPage() {
 
                             <div className="flex items-center gap-1">
                               <Switch checked={block.is_enabled} onCheckedChange={(v) => toggleBlock(block, !!v)} />
-                              <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => openEditDialog(block)}>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9"
+                                onClick={() => openEditDialog(block)}
+                                aria-label={`Edit ${prettyType(block.type)}`}
+                              >
                                 <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button variant="outline" size="icon" className="h-9 w-9 hover:bg-destructive/10" onClick={() => deleteBlock(block)}>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9 hover:bg-destructive/10"
+                                onClick={() => deleteBlock(block)}
+                                aria-label={`Delete ${prettyType(block.type)}`}
+                              >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </div>

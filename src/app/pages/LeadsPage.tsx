@@ -201,7 +201,7 @@ export default function LeadsPage() {
 
       <main className="container mx-auto px-4 py-6 space-y-4">
         <Card className="p-4">
-          <div className="grid gap-4 md:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-2">
               <Label>Filter by page</Label>
               <select
@@ -309,6 +309,7 @@ export default function LeadsPage() {
                       size="sm"
                       onClick={() => toggleContacted(lead)}
                       title={lead.is_contacted ? 'Mark as new' : 'Mark as contacted'}
+                      aria-label={lead.is_contacted ? 'Mark lead as new' : 'Mark lead as contacted'}
                     >
                       {lead.is_contacted ? 'Mark new' : 'Mark contacted'}
                     </Button>
@@ -318,6 +319,7 @@ export default function LeadsPage() {
                       onClick={() => deleteLead(lead.id)}
                       className="hover:bg-destructive/10 hover:text-destructive"
                       title="Delete lead"
+                      aria-label="Delete lead"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
