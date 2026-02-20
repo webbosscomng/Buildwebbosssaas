@@ -133,6 +133,21 @@ function prettyType(t: BlockType) {
   return BLOCK_TYPE_OPTIONS.find((x) => x.type === t)?.label || t;
 }
 
+function typeEmoji(t: BlockType) {
+  const map: Record<BlockType, string> = {
+    link: '🔗',
+    whatsapp_cta: '💬',
+    product: '🛍️',
+    social_row: '🌐',
+    embed: '🎬',
+    contact_form: '📩',
+    announcement: '📣',
+    text: '📝',
+    divider: '➖',
+  };
+  return map[t] || '📦';
+}
+
 function summarize(block: PageBlock) {
   const s = block.settings || {};
   return (
@@ -705,40 +720,55 @@ export default function PageEditorPage() {
                 </Card>
               ) : (
                 orderedBlocks.map((block, index) => (
-                    <Card key={block.id} className="p-4">
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                        <GripVertical className="h-5 w-5 text-muted-foreground" />
-                        <div className="basis-full sm:basis-auto flex-1 min-w-0">
-                          <p className="font-medium">{prettyType(block.type)}</p>
+                    <Card key={block.id} className="p-4 rounded-2xl border shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <GripVertical className="h-5 w-5 text-muted-foreground mt-1" />
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-base">{typeEmoji(block.type)}</span>
+                            <p className="font-semibold leading-none">{prettyType(block.type)}</p>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full border ${block.is_enabled ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30' : 'bg-zinc-500/10 text-zinc-600 border-zinc-500/20'}`}>
+                              {block.is_enabled ? 'Enabled' : 'Disabled'}
+                            </span>
+                          </div>
                           <p className="text-sm text-muted-foreground truncate">{summarize(block)}</p>
+
+                          <div className="mt-3 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9"
+                                disabled={index === 0}
+                                onClick={() => moveBlock(block.id, 'up')}
+                                title="Move up"
+                              >
+                                <ArrowUp className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9"
+                                disabled={index === orderedBlocks.length - 1}
+                                onClick={() => moveBlock(block.id, 'down')}
+                                title="Move down"
+                              >
+                                <ArrowDown className="h-4 w-4" />
+                              </Button>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <Switch checked={block.is_enabled} onCheckedChange={(v) => toggleBlock(block, !!v)} />
+                              <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => openEditDialog(block)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="outline" size="icon" className="h-9 w-9 hover:bg-destructive/10" onClick={() => deleteBlock(block)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled={index === 0}
-                            onClick={() => moveBlock(block.id, 'up')}
-                            title="Move up"
-                          >
-                            <ArrowUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            disabled={index === orderedBlocks.length - 1}
-                            onClick={() => moveBlock(block.id, 'down')}
-                            title="Move down"
-                          >
-                            <ArrowDown className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <Switch checked={block.is_enabled} onCheckedChange={(v) => toggleBlock(block, !!v)} />
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(block)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteBlock(block)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
                       </div>
                     </Card>
                   ))
