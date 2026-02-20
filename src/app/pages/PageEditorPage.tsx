@@ -265,6 +265,7 @@ export default function PageEditorPage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingProductImage, setUploadingProductImage] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [blockMenuOpenId, setBlockMenuOpenId] = useState<string | null>(null);
   const [compactMobileHeader, setCompactMobileHeader] = useState<boolean>(() => {
     try {
       return localStorage.getItem('webboss_editor_mobile_header') !== 'classic';
@@ -760,7 +761,7 @@ export default function PageEditorPage() {
                               </Button>
                             </div>
 
-                            <div className="flex items-center gap-1">
+                            <div className="hidden sm:flex items-center gap-1">
                               <Switch checked={block.is_enabled} onCheckedChange={(v) => toggleBlock(block, !!v)} />
                               <Button
                                 variant="outline"
@@ -780,6 +781,33 @@ export default function PageEditorPage() {
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
+                            </div>
+
+                            <div className="sm:hidden relative">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9"
+                                onClick={() => setBlockMenuOpenId((id) => (id === block.id ? null : block.id))}
+                                aria-label={`More actions for ${prettyType(block.type)}`}
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+
+                              {blockMenuOpenId === block.id && (
+                                <div className="absolute right-0 mt-2 w-40 rounded-lg border bg-background shadow-lg z-20 p-1">
+                                  <div className="px-2 py-2">
+                                    <div className="text-xs text-muted-foreground mb-1">Enabled</div>
+                                    <Switch checked={block.is_enabled} onCheckedChange={(v) => toggleBlock(block, !!v)} />
+                                  </div>
+                                  <Button variant="ghost" className="w-full justify-start" onClick={() => { openEditDialog(block); setBlockMenuOpenId(null); }}>
+                                    Edit block
+                                  </Button>
+                                  <Button variant="ghost" className="w-full justify-start text-destructive" onClick={() => { deleteBlock(block); setBlockMenuOpenId(null); }}>
+                                    Delete block
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>

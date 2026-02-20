@@ -8,6 +8,7 @@ import type { User } from '@supabase/supabase-js';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import PricingPage from './pages/PricingPage';
 import PublicProfilePage from './pages/PublicProfilePage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
@@ -101,6 +102,7 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           
