@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router';
-import { ArrowLeft, Plus, Eye, EyeOff, GripVertical, Trash2, ExternalLink, Pencil } from 'lucide-react';
+import { ArrowLeft, Plus, Eye, EyeOff, GripVertical, Trash2, ExternalLink, Pencil, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -135,6 +135,11 @@ export default function PageEditorPage() {
   useEffect(() => {
     loadPage();
   }, [pageId]);
+
+  const orderedBlocks = useMemo(
+    () => blocks.slice().sort((a, b) => a.sort_order - b.sort_order),
+    [blocks],
+  );
 
   const nextSortOrder = useMemo(
     () => (blocks.length ? Math.max(...blocks.map((b) => b.sort_order || 0)) + 1 : 0),
@@ -322,6 +327,44 @@ export default function PageEditorPage() {
     }
   };
 
+  const moveBlock = async (blockId: string, direction: 'up' | 'down') => {
+    const current = orderedBlocks.findIndex((b) => b.id === blockId);
+    if (current < 0) return;
+
+    const target = direction === 'up' ? current - 1 : current + 1;
+    if (target < 0 || target >= orderedBlocks.length) return;
+
+    const reordered = [...orderedBlocks];
+    const [item] = reordered.splice(current, 1);
+    reordered.splice(target, 0, item);
+
+    const normalized = reordered.map((b, idx) => ({ ...b, sort_order: idx }));
+    setBlocks(normalized);
+
+    try {
+      const supabase = createClient();
+      const updates = normalized.map((b) =>
+        supabase
+          .from('page_blocks')
+          .update({ sort_order: b.sort_order })
+          .eq('id', b.id)
+          .eq('page_id', b.page_id),
+      );
+
+      const results = await Promise.all(updates);
+      const failed = results.find((r) => r.error);
+      if (failed?.error) throw failed.error;
+    } catch (error) {
+      console.error('Move block error:', error);
+      toast.error('Failed to reorder block');
+      // Reload server truth on failure
+      loadPage();
+      return;
+    }
+
+    toast.success('Block order updated');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -415,16 +458,33 @@ export default function PageEditorPage() {
                   </Button>
                 </Card>
               ) : (
-                blocks
-                  .slice()
-                  .sort((a, b) => a.sort_order - b.sort_order)
-                  .map((block) => (
+                orderedBlocks.map((block, index) => (
                     <Card key={block.id} className="p-4">
                       <div className="flex items-center gap-3">
                         <GripVertical className="h-5 w-5 text-muted-foreground" />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium">{prettyType(block.type)}</p>
                           <p className="text-sm text-muted-foreground truncate">{summarize(block)}</p>
+                        </div>
+                        <div className="flex items-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={index === 0}
+                            onClick={() => moveBlock(block.id, 'up')}
+                            title="Move up"
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={index === orderedBlocks.length - 1}
+                            onClick={() => moveBlock(block.id, 'down')}
+                            title="Move down"
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
                         </div>
                         <Switch checked={block.is_enabled} onCheckedChange={(v) => toggleBlock(block, !!v)} />
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(block)}>
