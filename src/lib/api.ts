@@ -1,6 +1,5 @@
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { getAccessToken } from './auth';
-import { createClient } from './supabase';
 import { RESERVED_HANDLES } from './utils';
 
 const API_BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-49cc7ee6`;
@@ -8,18 +7,22 @@ const API_BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-
 // Helper to make authenticated requests
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const token = await getAccessToken();
-  
+
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
     ...options.headers,
   };
-  
+
+  // Supabase Functions expects `apikey` always; `Authorization` only for user JWT.
+  headers['apikey'] = publicAnonKey;
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
-  } else {
-    headers['Authorization'] = `Bearer ${publicAnonKey}`;
   }
-  
+
+  // Only set JSON content-type when body is not FormData
+  if (!(options.body instanceof FormData) && !('Content-Type' in (headers as any))) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
@@ -33,50 +36,22 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   return response.json();
 }
 
-// Check handle availability (using Supabase directly)
+// Check handle availability (authoritative check via Edge Function)
 export async function checkHandleAvailability(handle: string): Promise<{
   available: boolean;
   reason?: string;
 }> {
-  try {
-    // Check if handle is reserved
-    if (RESERVED_HANDLES.includes(handle.toLowerCase())) {
-      return {
-        available: false,
-        reason: 'This handle is reserved',
-      };
-    }
+  const normalized = handle.toLowerCase().trim();
 
-    // Check if handle exists in database
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('pages')
-      .select('handle')
-      .eq('handle', handle.toLowerCase())
-      .maybeSingle();
-
-    if (error) {
-      console.error('Handle check error:', error);
-      throw error;
-    }
-
-    if (data) {
-      return {
-        available: false,
-        reason: 'This handle is already taken',
-      };
-    }
-
-    return {
-      available: true,
-    };
-  } catch (error) {
-    console.error('Error checking handle availability:', error);
-    // In case of error, assume available to not block the user
-    return {
-      available: true,
-    };
+  // Fast local feedback for reserved words, but server remains authoritative.
+  if (RESERVED_HANDLES.includes(normalized)) {
+    return { available: false, reason: 'reserved' };
   }
+
+  // Edge function returns: { available: boolean, reason?: 'invalid_format'|'reserved'|'taken' }
+  return fetchAPI(`/handles/${encodeURIComponent(normalized)}/available`, {
+    method: 'GET',
+  });
 }
 
 // Log analytics event (using Supabase directly)

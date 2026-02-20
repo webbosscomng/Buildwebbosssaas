@@ -10,6 +10,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import PricingPage from './pages/PricingPage';
 import PublicProfilePage from './pages/PublicProfilePage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
 import Dashboard from './pages/Dashboard';
 import OnboardingPage from './pages/OnboardingPage';
 import PagesListPage from './pages/PagesListPage';
@@ -100,6 +101,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
           
           {/* Public Profile Pages */}
           <Route path="/@:handle" element={<PublicProfilePage />} />
