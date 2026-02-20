@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import { createClient } from '../../lib/supabase';
 import type { Page, PageBlock } from '../../lib/supabase';
+import type { ThemeTokens } from '../../lib/theme';
+import { tokensToCssVars } from '../../lib/theme';
 import { BlockRenderer } from '../components/blocks/BlockRenderer';
 import { NotFoundState, ErrorState } from '../components/EmptyState';
 import { Skeleton } from '../components/ui/skeleton';
@@ -17,6 +19,7 @@ export default function PublicProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [themeTokens, setThemeTokens] = useState<ThemeTokens | null>(null);
 
   useEffect(() => {
     loadPage();
@@ -82,6 +85,21 @@ export default function PublicProfilePage() {
       }
 
       setPage(pageData);
+
+      // Load theme tokens (optional)
+      if (pageData.theme_id) {
+        const { data: themeData } = await supabase
+          .from('themes')
+          .select('tokens')
+          .eq('id', pageData.theme_id)
+          .single();
+
+        if (themeData?.tokens) {
+          setThemeTokens(themeData.tokens as any);
+        }
+      } else {
+        setThemeTokens(null);
+      }
 
       // Load blocks
       const { data: blocksData, error: blocksError } = await supabase
@@ -149,6 +167,7 @@ export default function PublicProfilePage() {
     <div 
       className="min-h-screen bg-background"
       data-theme={theme}
+      style={themeTokens ? (tokensToCssVars(themeTokens) as any) : undefined}
     >
       <div className="max-w-2xl mx-auto px-4 py-12">
         {/* Profile Header */}
