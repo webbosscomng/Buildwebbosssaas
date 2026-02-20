@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, Download, Mail, Phone } from 'lucide-react';
+import { ArrowLeft, Download, Mail, Phone, Trash2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -34,6 +34,7 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
 
   const [pageFilter, setPageFilter] = useState('all');
+  const [rangeFilter, setRangeFilter] = useState<'7' | '30' | '90' | 'all'>('30');
   const [query, setQuery] = useState('');
 
   useEffect(() => {
@@ -79,8 +80,17 @@ export default function LeadsPage() {
   };
 
   const filtered = useMemo(() => {
+    const now = Date.now();
+    const days = rangeFilter === 'all' ? null : Number(rangeFilter);
+
     return rows.filter((r) => {
       const byPage = pageFilter === 'all' || r.page_id === pageFilter;
+
+      const byRange =
+        days == null
+          ? true
+          : now - new Date(r.created_at).getTime() <= days * 24 * 60 * 60 * 1000;
+
       const q = query.trim().toLowerCase();
       const byQuery =
         !q ||
@@ -89,9 +99,9 @@ export default function LeadsPage() {
         (r.phone || '').toLowerCase().includes(q) ||
         (r.message || '').toLowerCase().includes(q) ||
         (r.page?.handle || '').toLowerCase().includes(q);
-      return byPage && byQuery;
+      return byPage && byRange && byQuery;
     });
-  }, [rows, pageFilter, query]);
+  }, [rows, pageFilter, rangeFilter, query]);
 
   const exportCSV = () => {
     const csv = toCSV(filtered);
@@ -102,6 +112,22 @@ export default function LeadsPage() {
     a.download = `webboss-leads-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const deleteLead = async (id: string) => {
+    const ok = window.confirm('Delete this lead?');
+    if (!ok) return;
+
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from('leads').delete().eq('id', id);
+      if (error) throw error;
+      setRows((prev) => prev.filter((r) => r.id !== id));
+      toast.success('Lead deleted');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to delete lead');
+    }
   };
 
   return (
@@ -129,7 +155,7 @@ export default function LeadsPage() {
 
       <main className="container mx-auto px-4 py-6 space-y-4">
         <Card className="p-4">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <div className="space-y-2">
               <Label>Filter by page</Label>
               <select
@@ -143,6 +169,20 @@ export default function LeadsPage() {
                     @{p.handle} {p.title ? `(${p.title})` : ''}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Date range</Label>
+              <select
+                className="w-full h-10 rounded-md border bg-background px-3"
+                value={rangeFilter}
+                onChange={(e) => setRangeFilter(e.target.value as any)}
+              >
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="all">All time</option>
               </select>
             </div>
 
@@ -195,6 +235,16 @@ export default function LeadsPage() {
                       <p className="mt-3 text-sm whitespace-pre-wrap break-words">{lead.message}</p>
                     )}
                   </div>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteLead(lead.id)}
+                    className="self-start hover:bg-destructive/10 hover:text-destructive"
+                    title="Delete lead"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </Card>
             ))}
