@@ -158,19 +158,43 @@ export async function getAnalyticsSummary(
   }
 }
 
-// Upload avatar (private bucket + signed URLs via Edge Function)
+// Upload avatar (direct Storage upload; works without Edge Function deployment)
 export async function uploadAvatar(file: File, pageId: string): Promise<{
   path: string;
   url: string;
 }> {
-  const form = new FormData();
-  form.append('file', file);
-  form.append('pageId', pageId);
+  const supabase = createClient();
 
-  return fetchAPI('/storage/avatar', {
-    method: 'POST',
-    body: form,
-  });
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  const userId = authData.user?.id;
+  if (!userId) throw new Error('Not authenticated');
+
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const filePath = `${userId}/${pageId}/avatar.${ext}`;
+
+  const { error } = await supabase.storage
+    .from('avatars-webboss-49cc7ee6')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: true,
+      contentType: file.type || 'image/jpeg',
+    });
+
+  if (error) throw error;
+
+  // Try signed URL first
+  const signed = await supabase.storage
+    .from('avatars-webboss-49cc7ee6')
+    .createSignedUrl(filePath, 3600);
+
+  if (!signed.error && signed.data?.signedUrl) {
+    return { path: filePath, url: signed.data.signedUrl };
+  }
+
+  // Fallback (if bucket is public)
+  const pub = supabase.storage.from('avatars-webboss-49cc7ee6').getPublicUrl(filePath);
+  return { path: filePath, url: pub.data.publicUrl };
 }
 
 // Get signed URL for avatar
@@ -179,19 +203,31 @@ export async function getAvatarUrl(path: string): Promise<string> {
   if (!path) return '';
   if (/^https?:\/\//i.test(path)) return path;
 
-  // Edge Function route expects: /storage/avatar/:userId/:pageId/*
-  // Stored path format: `${userId}/${pageId}/avatar.ext`
-  const [userId, pageId, ...rest] = path.split('/');
-  const fileName = rest.join('/');
-  if (!userId || !pageId || !fileName) {
-    throw new Error('Invalid avatar path');
+  const supabase = createClient();
+
+  // 1) Try Edge Function signer (if deployed)
+  try {
+    const [userId, pageId, ...rest] = path.split('/');
+    const fileName = rest.join('/');
+    if (userId && pageId && fileName) {
+      const result = await fetchAPI(`/storage/avatar/${encodeURIComponent(userId)}/${encodeURIComponent(pageId)}/${encodeURIComponent(fileName)}`, {
+        method: 'GET',
+      });
+      if (result?.url) return result.url;
+    }
+  } catch {
+    // ignore and fallback
   }
 
-  const result = await fetchAPI(`/storage/avatar/${encodeURIComponent(userId)}/${encodeURIComponent(pageId)}/${encodeURIComponent(fileName)}`, {
-    method: 'GET',
-  });
+  // 2) Try signed URL from client (works when authenticated + policy allows)
+  const signed = await supabase.storage
+    .from('avatars-webboss-49cc7ee6')
+    .createSignedUrl(path, 3600);
+  if (!signed.error && signed.data?.signedUrl) return signed.data.signedUrl;
 
-  return result.url;
+  // 3) Fallback public URL if bucket is public
+  const pub = supabase.storage.from('avatars-webboss-49cc7ee6').getPublicUrl(path);
+  return pub.data.publicUrl;
 }
 
 // Upload product image to Supabase Storage (public bucket)
