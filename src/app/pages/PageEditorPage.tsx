@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router';
-import { ArrowLeft, Plus, Eye, EyeOff, GripVertical, Trash2, ExternalLink, Pencil, ArrowUp, ArrowDown, ImagePlus } from 'lucide-react';
+import { ArrowLeft, Plus, Eye, EyeOff, GripVertical, Trash2, ExternalLink, Pencil, ArrowUp, ArrowDown, ImagePlus, Globe } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -22,6 +22,15 @@ import { useAuth } from '../App';
 import type { Page, PageBlock } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { BlockRenderer } from '../components/blocks/BlockRenderer';
+import {
+  siInstagram,
+  siTiktok,
+  siFacebook,
+  siX,
+  siTelegram,
+  siYoutube,
+  siWhatsapp,
+} from 'simple-icons';
 
 type BlockType = PageBlock['type'];
 
@@ -77,6 +86,27 @@ const SOCIAL_PLATFORM_PRESETS: Array<{ platform: string; label: string; icon: st
   { platform: 'whatsapp', label: 'WhatsApp', icon: '💬' },
   { platform: 'other', label: 'Other', icon: '🔗' },
 ];
+
+function SocialPlatformIcon({ platform }: { platform: string }) {
+  const key = platform.toLowerCase();
+  const map: Record<string, { path: string; hex: string } | undefined> = {
+    instagram: siInstagram,
+    tiktok: siTiktok,
+    facebook: siFacebook,
+    x: siX,
+    telegram: siTelegram,
+    youtube: siYoutube,
+    whatsapp: siWhatsapp,
+  };
+  const icon = map[key];
+  if (!icon) return <Globe className="h-4 w-4" />;
+
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true" role="img">
+      <path d={icon.path} fill={`#${icon.hex}`} />
+    </svg>
+  );
+}
 
 const DEFAULT_BY_TYPE: Record<BlockType, BlockFormState> = {
   link: { type: 'link', title: 'My Link', url: 'https://', icon: '🔗' },
@@ -868,7 +898,7 @@ export default function PageEditorPage() {
                     <div key={`${s.platform}-${idx}`} className="border rounded-md p-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
-                          <span>{s.icon}</span>
+                          <SocialPlatformIcon platform={s.platform} />
                           <span className="text-sm font-medium">{s.label}</span>
                         </div>
                         <Switch
