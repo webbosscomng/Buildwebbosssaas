@@ -36,6 +36,7 @@ type BlockFormState = {
   price?: string;
   description?: string;
   image?: string;
+  images?: string[];
   whatsappNumber?: string;
   embedUrl?: string;
   text?: string;
@@ -57,7 +58,7 @@ const BLOCK_TYPE_OPTIONS: Array<{ type: BlockType; label: string }> = [
 const DEFAULT_BY_TYPE: Record<BlockType, BlockFormState> = {
   link: { type: 'link', title: 'My Link', url: 'https://', icon: '🔗' },
   whatsapp_cta: { type: 'whatsapp_cta', buttonText: 'Chat on WhatsApp', phone: '', message: 'Hi!' },
-  product: { type: 'product', name: 'Product Name', price: '5000', description: '', image: '', whatsappNumber: '' },
+  product: { type: 'product', name: 'Product Name', price: '5000', description: '', image: '', images: [], whatsappNumber: '' },
   social_row: { type: 'social_row', text: 'Add social links in future update' },
   embed: { type: 'embed', embedUrl: '' },
   contact_form: { type: 'contact_form', title: 'Contact Me', submitText: 'Send' },
@@ -83,10 +84,19 @@ function summarize(block: PageBlock) {
 }
 
 function toForm(block: PageBlock): BlockFormState {
+  const settings: any = block.settings || {};
+  const images = Array.isArray(settings.images)
+    ? settings.images
+    : settings.image
+      ? [settings.image]
+      : [];
+
   return {
     type: block.type,
     ...DEFAULT_BY_TYPE[block.type],
-    ...block.settings,
+    ...settings,
+    image: settings.image || images[0] || '',
+    images,
   };
 }
 
@@ -96,14 +106,18 @@ function toSettings(form: BlockFormState): Record<string, any> {
       return { title: form.title || 'My Link', url: form.url || '', icon: form.icon || '🔗' };
     case 'whatsapp_cta':
       return { buttonText: form.buttonText || 'Chat on WhatsApp', phone: form.phone || '', message: form.message || '' };
-    case 'product':
+    case 'product': {
+      const images = (form.images || []).filter(Boolean);
+      const first = images[0] || form.image || '';
       return {
         name: form.name || 'Product Name',
         price: form.price || '0',
         description: form.description || '',
-        image: form.image || '',
+        image: first,
+        images,
         whatsappNumber: form.whatsappNumber || '',
       };
+    }
     case 'social_row':
       return { text: form.text || '' };
     case 'embed':
@@ -237,8 +251,12 @@ export default function PageEditorPage() {
 
     try {
       const uploaded = await uploadProductImage(file, pageId);
-      setForm((f) => ({ ...f, image: uploaded.url }));
-      toast.success('Product image uploaded');
+      setForm((f) => {
+        const nextImages = [...(f.images || [])];
+        nextImages.push(uploaded.url);
+        return { ...f, image: nextImages[0] || uploaded.url, images: nextImages };
+      });
+      toast.success('Product image added');
     } catch (e: any) {
       console.error(e);
       if (String(e?.message || '').toLowerCase().includes('bucket')) {
@@ -648,53 +666,93 @@ export default function PageEditorPage() {
                   <Input value={form.price || ''} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Product Image</Label>
+                  <Label>Product Images</Label>
 
-                  {form.image ? (
-                    <img
-                      src={form.image}
-                      alt="Product"
-                      className="h-28 w-full rounded-md border object-cover"
-                      loading="lazy"
-                    />
+                  {form.images && form.images.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {form.images.map((img, idx) => (
+                        <div key={`${img}-${idx}`} className="relative">
+                          <img
+                            src={img}
+                            alt={`Product ${idx + 1}`}
+                            className="h-24 w-full rounded-md border object-cover"
+                            loading="lazy"
+                          />
+                          <button
+                            type="button"
+                            className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 text-white text-xs"
+                            onClick={() =>
+                              setForm((f) => {
+                                const next = (f.images || []).filter((_, i) => i !== idx);
+                                return { ...f, images: next, image: next[0] || '' };
+                              })
+                            }
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <div className="h-28 w-full rounded-md border border-dashed flex items-center justify-center text-sm text-muted-foreground">
-                      No image selected
+                      No images selected
                     </div>
                   )}
 
                   <div className="flex items-center gap-2">
                     <label className="inline-flex items-center gap-2 text-sm text-primary cursor-pointer">
                       <ImagePlus className="h-4 w-4" />
-                      {uploadingProductImage ? 'Uploading image...' : 'Choose image'}
+                      {uploadingProductImage ? 'Uploading image...' : 'Choose image(s)'}
                       <input
                         type="file"
                         accept="image/*"
+                        multiple
                         className="hidden"
                         disabled={uploadingProductImage}
-                        onChange={(e) => handleProductImageUpload(e.target.files?.[0])}
+                        onChange={async (e) => {
+                          const files = Array.from(e.target.files || []);
+                          for (const file of files) {
+                            // eslint-disable-next-line no-await-in-loop
+                            await handleProductImageUpload(file);
+                          }
+                        }}
                       />
                     </label>
-                    {form.image && (
+                    {form.images && form.images.length > 0 && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => setForm((f) => ({ ...f, image: '' }))}
+                        onClick={() => setForm((f) => ({ ...f, images: [], image: '' }))}
                       >
-                        Remove
+                        Clear all
                       </Button>
                     )}
                   </div>
 
                   <details className="text-xs text-muted-foreground">
                     <summary className="cursor-pointer">Or paste image link</summary>
-                    <div className="mt-2">
+                    <div className="mt-2 flex items-center gap-2">
                       <Input
                         value={form.image || ''}
                         onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))}
                         placeholder="https://..."
                       />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const url = (form.image || '').trim();
+                          if (!url) return;
+                          setForm((f) => {
+                            const next = [...(f.images || []), url];
+                            return { ...f, images: next, image: next[0] || '' };
+                          });
+                        }}
+                      >
+                        Add
+                      </Button>
                     </div>
                   </details>
                 </div>

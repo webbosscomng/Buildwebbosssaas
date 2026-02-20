@@ -94,8 +94,10 @@ function WhatsAppCTABlock({ block, onClick }: { block: PageBlock; onClick: () =>
 }
 
 function ProductBlock({ block, onClick }: { block: PageBlock; onClick: () => void }) {
-  const { name, price, image, description, whatsappNumber, whatsappMessage } = block.settings;
+  const { name, price, image, images, description, whatsappNumber, whatsappMessage } = block.settings;
+  const allImages: string[] = (Array.isArray(images) && images.length ? images : image ? [image] : []).filter(Boolean);
   const [openImage, setOpenImage] = React.useState(false);
+  const [activeIndex, setActiveIndex] = React.useState(0);
   
   const handleOrder = () => {
     onClick();
@@ -109,29 +111,58 @@ function ProductBlock({ block, onClick }: { block: PageBlock; onClick: () => voi
   return (
     <>
       <Card className="overflow-hidden">
-        {image && (
-          <button
-            type="button"
-            className="w-full bg-muted relative p-2"
-            onClick={() => setOpenImage(true)}
-            aria-label={`Expand image for ${name || 'product'}`}
-          >
-            <div className="h-44 sm:h-52 w-full rounded-md overflow-hidden bg-muted/50 border">
-              <img 
-                src={cloudinaryOptimized(image, 900)} 
-                alt={name} 
-                className="w-full h-full object-contain"
-                loading="lazy"
-                decoding="async"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            </div>
-            <span className="absolute bottom-4 right-4 text-[11px] px-2 py-1 rounded bg-black/60 text-white">
-              Tap to expand
-            </span>
-          </button>
+        {allImages.length > 0 && (
+          <div className="w-full bg-muted relative p-2">
+            <button
+              type="button"
+              className="w-full"
+              onClick={() => {
+                setActiveIndex(0);
+                setOpenImage(true);
+              }}
+              aria-label={`Expand image for ${name || 'product'}`}
+            >
+              <div className="h-44 sm:h-52 w-full rounded-md overflow-hidden bg-muted/50 border">
+                <img 
+                  src={cloudinaryOptimized(allImages[0], 900)} 
+                  alt={name} 
+                  className="w-full h-full object-contain"
+                  loading="lazy"
+                  decoding="async"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              </div>
+              <span className="absolute bottom-4 right-4 text-[11px] px-2 py-1 rounded bg-black/60 text-white">
+                Tap to expand
+              </span>
+            </button>
+
+            {allImages.length > 1 && (
+              <div className="mt-2 flex gap-2 overflow-x-auto">
+                {allImages.map((img, idx) => (
+                  <button
+                    key={`${img}-${idx}`}
+                    type="button"
+                    className="shrink-0 rounded border"
+                    onClick={() => {
+                      setActiveIndex(idx);
+                      setOpenImage(true);
+                    }}
+                  >
+                    <img
+                      src={cloudinaryOptimized(img, 160)}
+                      alt={`${name} ${idx + 1}`}
+                      className="h-14 w-14 object-cover rounded"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
         <div className="p-4">
           <div className="flex items-start justify-between mb-2 gap-3">
@@ -157,13 +188,13 @@ function ProductBlock({ block, onClick }: { block: PageBlock; onClick: () => voi
         </div>
       </Card>
 
-      {openImage && image && (
+      {openImage && allImages.length > 0 && (
         <div
           className="fixed inset-0 z-[100] bg-black/80 p-4 flex items-center justify-center"
           onClick={() => setOpenImage(false)}
         >
           <img
-            src={cloudinaryOptimized(image, 1600)}
+            src={cloudinaryOptimized(allImages[activeIndex], 1600)}
             alt={name}
             className="max-h-[90vh] max-w-[95vw] object-contain rounded-md"
             onClick={(e) => e.stopPropagation()}
