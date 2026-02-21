@@ -21,8 +21,14 @@ export default function ForgotPasswordPage() {
 
     try {
       const res = await resetPassword(email.trim());
-      if (!res.success) throw new Error(res.error || 'Failed to send reset email');
-      setMessage('Password reset link sent. Please check your email.');
+
+      // Avoid false-negative UX. If provider accepts the request,
+      // we should show a neutral success message.
+      if (!res.success) {
+        console.warn('resetPassword returned non-success:', res.error);
+      }
+
+      setMessage('If this email exists, a reset link has been sent. Please check your inbox (and spam).');
     } catch (err: any) {
       setError(err?.message || 'Unable to send reset link');
     } finally {
